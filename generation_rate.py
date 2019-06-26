@@ -51,25 +51,32 @@ def write_charge_gen_mat(x, y, z, G, filepath=None):
     else:
         sio.savemat(filepath, data)
 
-# Grid parameters
-max_length = 139 #150  # max width of grid/grid boundary (um), must include all data
-N_grid = 51       # number of grid elements in each dimension
+def process_data(max_length=None, N_grid=None, datafile=None)
+    if max_length is None:
+        # Grid parameters
+        max_length = 139 #150  # max width of grid/grid boundary (um), must include all data
+    if N_grid is None:
+        N_grid = 51       # number of grid elements in each dimension
 
-# Get data file (currently prompting)
-print "current location: {}".format(os.getcwd())
-dat = raw_input("Where is the data?: ")
+    if datafile is None:
+        # Get data file (currently prompting)
+        print "current location: {}".format(os.getcwd())
+        datafile = raw_input("Where is the data?: ")
 
-# parse list of trajectories from pyPENELOPE, separate by parent primary
-all_trajectories = parse(dat)
-incidents = separate_collisions(all_trajectories)
+    # parse list of trajectories from pyPENELOPE, separate by parent primary
+    all_trajectories = parse(datafile, trim=True)
+    incidents = separate_collisions(all_trajectories)
 
-filename_template = "generation_{}.mat"
-location = raw_input("Where should .mat files be saved?" \
-        "\n(directory ending with '/'): ")  # linux CLI for now
+    filename_template = "generation_{}.mat"
+    location = raw_input("Where should .mat files be saved?" \
+            "\n(directory ending with '/'): ")  # linux CLI for now
 
-for index, incident in enumerate(incidents):
-    # Process an incident (set of trajectories) and save charge generation info
-    x, y, z, G = process_impact(incident, max_length, N_grid)
-    filepath = (location + filename_template).format(index)
-    write_charge_gen_mat(x, y, z, G, filepath=filepath)
+    for index, incident in enumerate(incidents):
+        # Process an incident (set of trajectories) and save charge generation info
+        x, y, z, G = process_impact(incident, max_length, N_grid)
+        filepath = (location + filename_template).format(index)
+        write_charge_gen_mat(x, y, z, G, filepath=filepath)
 
+# If script is being run standalone
+if __name__ == "__main__":
+    process_data()

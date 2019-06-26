@@ -1,5 +1,4 @@
 # Processes a set of trajectories associated with a single primary electron
-from math import floor
 import numpy as np
 import sys
 
@@ -16,15 +15,8 @@ def find_data_ranges(trajectories):
     global min_x
     global min_y
     global min_z
-    CUTOFF = 1  # value past which we can exclude a datapoint from the set
     for traj in trajectories:
         for index, event in enumerate(traj.events):
-            # Remove incident event so it doesn't cause problems later:
-            if any(i > CUTOFF for i in [event["x"], event["y"], event["z"]]):
-                print >> sys.stderr, "Delete evt #{} in traj {}: " \
-                "{}".format(index, traj.traj, event)
-                del traj.events[index]
-                continue
             # search for minimized coordinates
             if min_x > event["x"]:
                 min_x = event["x"]
@@ -37,7 +29,6 @@ def find_data_ranges(trajectories):
     min_z *= 1e4
 
 # would be simplefied by using np probably but this is fine for now
-# This doesn't seem to work properly
 def adjust_volume(traj):
     global min_x
     global min_y
@@ -75,13 +66,24 @@ def process_impact(trajectories, max_length, N_grid):
 
         adjust_volume(traj)
 
-        E_prev = traj.events[0]["E"]
+        x_traj = np.array([evt['x'] for evt in traj.events])
+        y_traj = np.array([evt['y'] for evt in traj.events])
+        z_traj = np.array([evt['z'] for evt in traj.events])
+        
+
+        E_left = [e["E"] for e in traj.events]
+        E_prev = E_left[0] #traj.events[0]["E"]
 
         # Assign energy lost to each grid element
-        for event in traj.events:
-            x_ind = int(floor(event["x"] / voxel_length))
-            y_ind = int(floor(event["y"] / voxel_length))
-            z_ind = int(floor(event["z"] / voxel_length))
+        # TODO Something is wrong with this
+        #for index, event in enumerate(traj.events):
+        for i in range(len(traj.events)):
+            #x_ind = int(event["x"] / voxel_length)
+            #y_ind = int(event["y"] / voxel_length)
+            #z_ind = int(event["z"] / voxel_length)
+            x_ind = np.argmin(np.abs(x - x_traj[i]))
+            y_ind = np.argmin(np.abs(y - y_traj[i]))
+            z_ind = np.argmin(np.abs(z - z_traj[i]))
             
             # TODO HACK: some are out of bounds
             if (x_ind > 50 or y_ind > 50 or z_ind > 50):
@@ -89,13 +91,15 @@ def process_impact(trajectories, max_length, N_grid):
                 "index OoB: ({},{},{})".format(x_ind,y_ind,z_ind)
                 continue
         
-            delta_E = E_prev - event["E"]
+            #delta_E = E_prev - event["E"]
+            delta_E = E_prev - E_left[i]
             if delta_E > 0:
                 #print "({},{},{}):\t{}".format(x_ind, y_ind, z_ind, delta_E)
                 #print "({},{},{}):\t{}".format(event["x"], event["y"], event["z"], delta_E)
                 # I think it's ok for these to be here...
                 E_lost[x_ind, y_ind, z_ind] += delta_E
-                E_prev = event["E"]
+                #E_prev = event["E"]
+                E_prev = E_left[i]
 
 
     # compute energy generation rate from energy lost

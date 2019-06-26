@@ -1,3 +1,4 @@
+import sys
 
 class Trajectory:
     def __init__(self, TRAJ, KPAR, PARENT, ICOL, EXIT):
@@ -14,7 +15,7 @@ class Trajectory:
 # Special considerations:
 # first event contains the initial position and energy of the incident particle
 # 
-def parse(filename):
+def parse(filename, trim=False):
     # read raw file into buffer
     buf = []
     with open(filename, 'r') as f:
@@ -48,17 +49,27 @@ def parse(filename):
             i += 2 # skip over the '111111...' line to first line of data
             continue
 
-        split_line = line.split()
+        split = line.split()
+        # Parse strings into appropriate values
+        split = [float(j) for j in split[0:5]] + [int(k) for k in split[5:]]
+
+        LIM = 1  # value past which we can exclude a datapoint from the set
+        # Remove incident event so it doesn't cause problems later:
+        if trim and any(e > LIM for e in [split[0], split[1], split[2]]):
+            print >> sys.stderr, "Delete evt #{} in traj {}: " \
+            "{}".format(i, trajectories[-1].traj, split)
+            i += 1
+            continue
 
         # append event to event list
         trajectories[-1].events.append({
-            "x": float(split_line[0]),
-            "y": float(split_line[1]),
-            "z": float(split_line[2]),
-            "E": float(split_line[3]),
-            "WGHT": float(split_line[4]),
-            "IBODY": int(split_line[5]),
-            "ICOL": int(split_line[6])})
+            "x": split[0],
+            "y": split[1],
+            "z": split[2],
+            "E": split[3],
+            "WGHT": split[4],
+            "IBODY": split[5],
+            "ICOL": split[6]})
         #debug:
         #event = trajectories[-1].events[-1]
         #print "({},{},{})".format(event["x"], event["y"], event["z"])
