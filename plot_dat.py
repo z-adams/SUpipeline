@@ -6,10 +6,20 @@ import os
 from parser import *
 
 DATA_FRAC = 5 # graph every nth data point
-LINE_ONLY = True
-SCALE = 1e4
+LINE_ONLY = True # plot only lines (not points) for trajectories
+SCALE = 1e4 # scale the units
 
 def plot_dat(trajectories=None, filename=None):
+    """ Plot a set of particle trajectories from pyPENELOPE
+    If a list of parsed trajectories or the filename of a .dat file to parse
+    is not specified, will prompt for a data filepath
+    
+    args:
+    trajectories -- a list of trajectories to plot
+    filename -- path to a .dat file to parse
+    
+    returns nothing
+    """
     if trajectories is None:
         if filename is None:
             print "current location: {}".format(os.getcwd())

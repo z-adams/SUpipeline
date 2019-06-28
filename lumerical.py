@@ -2,18 +2,29 @@ import imp
 import platform
 import os
 
-#plat = platform.system()
-#print(plat)
-#if plat == "Linux":
-lumapi = imp.load_source("lumapi", "/opt/lumerical/2019b/api/python/lumapi.py")
-#elif plat == "Windows":
-#    lumapi = imp.load_source("lumapi", "C:\\Program Files\\Lumerical\\2019b\\api\\python\\lumapi.py")
-#elif plat == "Darwin":  # mac
-#    print("I'll do this later")
+plat = platform.system()
+print "Platform: {}".format(plat)
+if plat == "Linux":
+    lumapi = imp.load_source("lumapi", "/opt/lumerical/2019b/api/python/lumapi.py")
+elif plat == "Windows":
+    lumapi = imp.load_source("lumapi", "C:\\Program Files\\Lumerical\\2019b\\api\\python\\lumapi.py")
+elif plat == "Darwin":  # mac
+    print "Not implemented yet, need to find path"
 
 # PyAPI essentially exposes the Lumerical script as python functions.
 # May end up just using a lsf if this is unnecessary
-def run_detector_test(charge_data_filename, output_filename=None):
+
+def run_detector_test(charge_data_filename, output_filename=None, scripts=None):
+    """ Perform a test run of a (currently fixed to) CdTe volume given
+    the specified charge generation volume data.
+
+    arguments:
+    charge_data_filename -- path to the charge generation data
+    output_filename -- path to the output files, or None to use default
+    scripts -- list of paths to arbitrary .lsf scripts to run after simulation
+
+    returns nothing
+    """
     device = lumapi.DEVICE(hide=True)
 
     device.addchargesolver()
@@ -24,7 +35,6 @@ def run_detector_test(charge_data_filename, output_filename=None):
     device.set("spatial results", props)
 
     device.addimportgen()
-    #device.importdataset("../autoex1/test.mat")
     device.importdataset(charge_data_filename)
 
     w_x = device.get("x span")
@@ -115,7 +125,6 @@ def run_detector_test(charge_data_filename, output_filename=None):
     device.set("surface type", "solid")
     device.set("solid", "bottom_electrode")
 
-    #device.save("../autoex1/test.ldev")
     if output_filename is None:
         savepath = charge_data_filename.replace(".mat", ".ldev")
     else:
@@ -123,12 +132,9 @@ def run_detector_test(charge_data_filename, output_filename=None):
     device.save(savepath)
     device.run()
 
-    device.feval("../get_3D_n_matrix.lsf")
-
-    try:
-        raw_input("press any key to continue...")
-    except:
-        pass
+    # evaluate arbitrary scripts
+    for script in scripts:
+        device.feval(script)
 
 if __name__ == '__main__':
     print "current location: {}".format(os.getcwd())

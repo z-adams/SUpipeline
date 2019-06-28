@@ -7,11 +7,24 @@ from parser import *
 import scipy.io as sio
 
 DATA_FRAC = 5 # graph every nth data point
-LINE_ONLY = True
-DAT_SCALE = 1
+LINE_ONLY = True # graph only lines (not points) for raw events
+DAT_SCALE = 1 # scale the datasets to match units
 MAT_SCALE = 1e6
 
 def plot_both(trajectories=None, dat=None, mat=None):
+    """ Plots both a raw trajectory and charge generation data
+    Since the .dat file usually contains extra information, typically
+    this function is used with the dat kwarg excluded, comparing only
+    a .mat charge data matrix and a parsed list of trajectories
+    associated with the same shower as the .mat.
+
+    args:
+    trajectories -- the list of trajectories to plot
+    dat -- plot a dat file's trajectories
+    mat -- plot a mat file's trajectories
+
+    returns nothing
+    """
     if trajectories is None:
         if dat is None:
             print "current location: {}".format(os.getcwd())

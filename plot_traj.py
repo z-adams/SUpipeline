@@ -6,6 +6,12 @@ import os
 import scipy.io as sio
 
 def plot_traj(filename=None):
+    """ Plot volume charge data from a .mat file
+    Will prompt for a data filepath if none is specified
+
+    args:
+    filename -- the data filepath
+    """
     if filename is None:
         print "current location: {}".format(os.getcwd())
         filename = raw_input("Where is the data file?: ")
@@ -14,24 +20,15 @@ def plot_traj(filename=None):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
-    first = True
-
     x = []
     y = []
     z = []
-
-    #line = re.sub(r"[(:]", "", line)
-    #split = re.split(r"[,) ]", line)
-    #split = [float(i) for i in split[:3]]
-    #ax.scatter(split[0], split[1], split[2], c=color, marker='o')
-    #x.append(split[0])
-    #y.append(split[1])
-    #z.append(split[2])
 
     x_bins = mat['x'].shape[1]
     y_bins = mat['y'].shape[1]
     z_bins = mat['z'].shape[1]
 
+    first = True
     for i in range(x_bins):
         for j in range(y_bins):
             for k in range(z_bins):
@@ -43,7 +40,7 @@ def plot_traj(filename=None):
                     y.append(j)
                     z.append(k)
 
-    #ax.plot(x, y, z, zdir=z, c=color, alpha=0.4)
+    ax.plot(x, y, z, zdir=z, c=color, alpha=0.4)
 
     ax.set_xlabel("x")
     ax.set_ylabel("y")

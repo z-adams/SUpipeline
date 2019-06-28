@@ -1,6 +1,7 @@
 import sys
 
 class Trajectory:
+    """ Represents a single trajectory and stores its list of events"""
     def __init__(self, TRAJ, KPAR, PARENT, ICOL, EXIT):
         self.traj = TRAJ
         self.kpar = KPAR
@@ -9,13 +10,16 @@ class Trajectory:
         self.exit = EXIT
         self.events = []
 
-################### PARSER ####################
-# Naive split of file into list of trajectories, which is then returned.
-# Assumptions: lines with comments will contain only comments
-# Special considerations:
-# first event contains the initial position and energy of the incident particle
-# 
-def parse(filename, trim=False):
+def parse(filename, trim=True):
+    """ Splits a .dat file from pyPENELOPE into a list of trajectories
+    Assumes that lines with comments will contain only comments.
+
+    args:
+    filename -- the path of the .dat file
+    trim -- removes extraneous data e.g. initial position, escaped particles
+
+    returns a list of trajectories
+    """
     # read raw file into buffer
     buf = []
     with open(filename, 'r') as f:
@@ -53,15 +57,7 @@ def parse(filename, trim=False):
         # Parse strings into appropriate values
         split = [float(j) for j in split[0:5]] + [int(k) for k in split[5:]]
 
-        #LIM = 1  # value past which we can exclude a datapoint from the set
-        # Remove incident event so it doesn't cause problems later:
-        #if trim and any(e > LIM for e in [split[0], split[1], split[2]]):
-        #    print >> sys.stderr, "Delete evt #{} in traj {}: " \
-        #    "{}".format(i, trajectories[-1].traj, split)
-        #    i += 1
-        #    continue
-
-        # experimental: this seems like it will work TODO validate
+        # Removes extraneous datapoints based on IBODY value
         if trim and split[5] != 1:
             print >> sys.stderr, "Delete evt #{} in traj {}: " \
             "{}".format(i, trajectories[-1].traj, split)
@@ -78,9 +74,6 @@ def parse(filename, trim=False):
             "WGHT": split[4],
             "IBODY": split[5],
             "ICOL": split[6]})
-        #debug:
-        #event = trajectories[-1].events[-1]
-        #print "({},{},{})".format(event["x"], event["y"], event["z"])
         i += 1
     return trajectories
 
