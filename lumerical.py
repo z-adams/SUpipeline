@@ -1,7 +1,6 @@
 import imp
 import platform
 import os
-import re
 
 #plat = platform.system()
 #print(plat)
@@ -14,19 +13,19 @@ lumapi = imp.load_source("lumapi", "/opt/lumerical/2019b/api/python/lumapi.py")
 
 # PyAPI essentially exposes the Lumerical script as python functions.
 # May end up just using a lsf if this is unnecessary
-def run_detector_test(charge_data, output_path=None):
+def run_detector_test(charge_data_filename, output_filename=None):
     device = lumapi.DEVICE(hide=True)
 
     device.addchargesolver()
-    device.set("min edge length", 0.1)
-    device.set("max edge length", 10)
+    device.set("min edge length", 1e-6)
+    device.set("max edge length", 1e-5)
     props = device.get("spatial results")
     props = props.replace("free_charge:", "").replace("space_charge:", "")
     device.set("spatial results", props)
 
     device.addimportgen()
     #device.importdataset("../autoex1/test.mat")
-    device.importdataset(charge_data)
+    device.importdataset(charge_data_filename)
 
     w_x = device.get("x span")
     w_y = device.get("y span")
@@ -117,15 +116,21 @@ def run_detector_test(charge_data, output_path=None):
     device.set("solid", "bottom_electrode")
 
     #device.save("../autoex1/test.ldev")
-    if output_path is None:
+    if output_filename is None:
         savepath = charge_data_filename.replace(".mat", ".ldev")
     else:
-        out_file = re.split(r'[/\\]', charge_data)[-1].replace(".mat", ".ldev")
-        savepath = output_path + out_file
+        savepath = output_filename
     device.save(savepath)
     device.run()
 
-    #try:
-    #    raw_input("press any key to continue...")
-    #except:
-    #    pass
+    device.feval("../get_3D_n_matrix.lsf")
+
+    try:
+        raw_input("press any key to continue...")
+    except:
+        pass
+
+if __name__ == '__main__':
+    print "current location: {}".format(os.getcwd())
+    datafile = raw_input("Where is the charge data .mat?: ")
+    run_detector_test(datafile)

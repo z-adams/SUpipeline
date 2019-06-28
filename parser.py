@@ -53,13 +53,21 @@ def parse(filename, trim=False):
         # Parse strings into appropriate values
         split = [float(j) for j in split[0:5]] + [int(k) for k in split[5:]]
 
-        LIM = 1  # value past which we can exclude a datapoint from the set
+        #LIM = 1  # value past which we can exclude a datapoint from the set
         # Remove incident event so it doesn't cause problems later:
-        if trim and any(e > LIM for e in [split[0], split[1], split[2]]):
+        #if trim and any(e > LIM for e in [split[0], split[1], split[2]]):
+        #    print >> sys.stderr, "Delete evt #{} in traj {}: " \
+        #    "{}".format(i, trajectories[-1].traj, split)
+        #    i += 1
+        #    continue
+
+        # experimental: this seems like it will work TODO validate
+        if trim and split[5] != 1:
             print >> sys.stderr, "Delete evt #{} in traj {}: " \
             "{}".format(i, trajectories[-1].traj, split)
             i += 1
             continue
+
 
         # append event to event list
         trajectories[-1].events.append({

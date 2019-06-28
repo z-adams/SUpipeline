@@ -12,57 +12,59 @@ from penelopetools.api.input.shower2010.source import Source
 from penelopetools.api.input.shower2010.jobproperties import Simulation
 from penelopetools.api.input.shower2010.options import Options
 
-BEAM_ENERGY=350e3 # 
+def run_penelope(num_particles=10, beam_energy=350e3):
+    ### Microscope ("source")
+    src = Source(particle=ELECTRON, beam_energy=beam_energy)
 
-### Microscope ("source")
-src = Source(particle=ELECTRON, beam_energy=BEAM_ENERGY)
+    ### Materials
 
-### Materials
+    # Create and select material
+    Cd = Element('Cd')
+    Te = Element('Te')
 
-# Create and select material
-Cd = Element('Cd')
-Te = Element('Te')
+    elems = Elements()
+    elems.add('Cd', fraction=0.5)
+    elems.add('Te', fraction=0.5)
+    elems.userdensity = 5.85
 
-elems = Elements()
-elems.add('Cd', fraction=0.5)
-elems.add('Te', fraction=0.5)
-elems.userdensity = 5.85
+    # Parameters: (equivalent to "use default simulation parameters" checkbox
+    energy_parameters = {
+            'absorption_energy_electron': beam_energy * 0.01,
+            'absorption_energy_photon': beam_energy * 0.001,
+            'absorption_energy_positron': beam_energy * 0.01,
+            'elastic_scattering_parameter_c1': 0.2,
+            'elastic_scattering_parameter_c2': 0.2,
+            'cutoff_energyloss_inelasticcollisions': beam_energy * 0.01,
+            'cutoff_energyloss_bremsstrahlungemission': beam_energy * 0.001 
+            }
+    params = SimulationParameters(**energy_parameters)
 
-# Parameters: (equivalent to "use default simulation parameters" checkbox
-energy_parameters = {
-        'absorption_energy_electron': BEAM_ENERGY * 0.1,
-        'absorption_energy_photon': BEAM_ENERGY * 0.01,
-        'absorption_energy_positron': BEAM_ENERGY * 0.1,
-        'elastic_scattering_parameter_c1': 0.2,
-        'elastic_scattering_parameter_c2': 0.2,
-        'cutoff_energyloss_inelasticcollisions': BEAM_ENERGY * 0.1,
-        'cutoff_energyloss_bremsstrahlungemission': BEAM_ENERGY * 0.01 
-        }
-params = SimulationParameters(**energy_parameters)
+    mat = Material(name="CdTe", filename="CdTe.mat", elements=elems, 
+            simulation_parameters=params)
 
-mat = Material(name="CdTe", filename="CdTe.mat", elements=elems, simulation_parameters=params)
+    mats = Materials()
+    mats.add(mat, userid=1)
 
-mats = Materials()
-mats.add(mat, userid=1)
+    ### Simulation
+    sim = Simulation(randomnumberseeds=None, secondary_particles=True, 
+            trajectories=num_particles)
 
-### Simulation
-sim = Simulation(randomnumberseeds=None, secondary_particles=True, trajectories=10)
+    ### Trajectories
 
-### Trajectories
+    opt = Options()
+    opt.description = Description(title='example')
+    opt.source = src
+    opt.materials = mats
+    opt.simulation = sim
+    opt.geometry = Substrate(substrate_material_id=1)
 
-opt = Options()
-opt.description = Description(title='example')
-opt.source = src
-opt.materials = mats
-opt.simulation = sim
-opt.geometry = Substrate(substrate_material_id=1)
+    #x = XMLFile()
+    #with open('test.xml', 'w') as f:
+    #    x.write(f, opt)
 
-#io = InputFile()
-x = XMLFile()
+    CONFIG = "/home/zander/.pypenelope/pypenelope.cfg" #TODO generalize
+    shwr = Shower2010(CONFIG, options=opt)
+    shwr.start()
 
-with open('test.xml', 'w') as f:
-    x.write(f, opt)
-
-CONFIG = "/home/zander/.pypenelope/pypenelope.cfg"
-shwr = Shower2010(CONFIG, options=opt)
-shwr.start()
+if __name__ == '__main__':
+    run_penelope()

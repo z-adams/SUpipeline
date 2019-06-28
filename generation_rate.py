@@ -3,6 +3,9 @@ import os
 import numpy as np
 from parser import *
 from process_impact import process_impact
+from plot_dat import plot_dat
+from plot_traj import plot_traj
+from plot_both import plot_both
 
 ## This file calls a parser to process a pyPENELOPE .dat output file and
 ## translates the data into a volumetric measurement of the amount of energy
@@ -51,13 +54,7 @@ def write_charge_gen_mat(x, y, z, G, filepath=None):
     else:
         sio.savemat(filepath, data)
 
-def process_data(max_length=None, N_grid=None, datafile=None)
-    if max_length is None:
-        # Grid parameters
-        max_length = 139 #150  # max width of grid/grid boundary (um), must include all data
-    if N_grid is None:
-        N_grid = 51       # number of grid elements in each dimension
-
+def process_data(datafile=None, output_dir=None, plot=False):
     if datafile is None:
         # Get data file (currently prompting)
         print "current location: {}".format(os.getcwd())
@@ -67,16 +64,25 @@ def process_data(max_length=None, N_grid=None, datafile=None)
     all_trajectories = parse(datafile, trim=True)
     incidents = separate_collisions(all_trajectories)
 
+    output_files = []
+
     filename_template = "generation_{}.mat"
-    location = raw_input("Where should .mat files be saved?" \
-            "\n(directory ending with '/'): ")  # linux CLI for now
+    if output_dir is None:
+        output_dir = raw_input("Where should .mat files be saved?" \
+                "\n(directory ending with '/'): ")  # linux CLI for now
 
     for index, incident in enumerate(incidents):
         # Process an incident (set of trajectories) and save charge generation info
-        x, y, z, G = process_impact(incident, max_length, N_grid)
-        filepath = (location + filename_template).format(index)
+        x, y, z, G = process_impact(incident, N_grid=100)
+        filepath = (output_dir + filename_template).format(index)
         write_charge_gen_mat(x, y, z, G, filepath=filepath)
+        if plot:
+            #plot_dat(trajectories=incident)
+            #plot_traj(filename=filepath)
+            plot_both(trajectories=incident, mat=filepath)
+        output_files.append(filepath)
+    return output_files
 
 # If script is being run standalone
 if __name__ == "__main__":
-    process_data()
+    process_data(plot=True)

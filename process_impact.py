@@ -1,70 +1,74 @@
 # Processes a set of trajectories associated with a single primary electron
 import numpy as np
 import sys
+from math import ceil
 
 
 # Global coordinate bounds, to be minimized in find_data_ranges()
-min_x = 1  # cm, TODO initial placeholder until I know what it should be
-min_y = 1
-min_z = 1
+min_x = 1e10  # um, TODO initial placeholder until I know what it should be
+min_y = 1e10
+min_z = 1e10
+max_x = -1e10
+max_y = -1e10
+max_z = -1e10
 
-# Scans data and trims simulation region accordingly
-# Also eliminates the initial event representing the particle beam emission
-# (since it's a huge outlier and irrelevant to charge generation)
-def find_data_ranges(trajectories):
-    global min_x
-    global min_y
-    global min_z
+minima = [1e10, 1e10, 1e10]
+maxima = [-1e10, -1e10, -1e10]
+coords = ['x', 'y', 'z']
+
+## Scans data to find its boundaries, converts from cm to um,
+## translates it such that all coordinates are positive
+def preprocess_data(trajectories):
+    global minima
+    global maxima
+    global coords
     for traj in trajectories:
         for index, event in enumerate(traj.events):
+            # convert cm to um
+            for e in coords:
+                event[e] *= 1e4
+
             # search for minimized coordinates
-            if min_x > event["x"]:
-                min_x = event["x"]
-            if min_y > event["y"]:
-                min_y = event["y"]
-            if min_z > event["z"]:
-                min_z = event["z"]
-    min_x *= 1e4
-    min_y *= 1e4
-    min_z *= 1e4
+            for i, e in enumerate(coords):
+                if minima[i] > event[e]:
+                    minima[i] = event[e]
 
-# would be simplefied by using np probably but this is fine for now
-def adjust_volume(traj):
-    global min_x
-    global min_y
-    global min_z
-    # adjust boundaries and unit scale with new known minima
-    for event in traj.events:
-        event["x"] *= 1e4
-        event["y"] *= 1e4
-        event["z"] *= 1e4
-        event["x"] -= min_x
-        event["y"] -= min_y
-        event["z"] -= min_z
+    # Translate data to have all positive coordinates
+    for traj in trajectories:
+        for event in traj.events:
+            for i, e in enumerate(coords):
+                event[e] -= minima[i] 
 
-        # Offset coordinates to center in simulation region (0-150 um)
-        # TODO: These don't seem to be used in reference
-        #event["x"] += 30
-        #event["y"] += 5
-        #event["z"] += 55
+    minima = [1e10, 1e10, 1e10]
+    # Calculate maxima
+    for traj in trajectories:
+        for index, event in enumerate(traj.events):
+            for i, e in enumerate(coords):
+                if maxima[i] < event[e]:
+                    maxima[i] = ceil(event[e])
+                # debug: recalculate minimum
+                if minima[i] > event[e]:
+                    minima[i] = event[e]
+    pass
 
-def process_impact(trajectories, max_length, N_grid):
+def process_impact(trajectories, N_grid):
     # Set up grid
-    x = np.linspace(0, max_length, N_grid)
-    y = np.linspace(0, max_length, N_grid)
-    z = np.linspace(0, max_length, N_grid)
-
-    voxel_length = float(max_length)/N_grid  # ~3um right now
 
     # Energy lost in each grid (primary output)
     E_lost = np.zeros((N_grid, N_grid, N_grid))
 
-    find_data_ranges(trajectories)
+    preprocess_data(trajectories)
+
+    x = np.linspace(0, maxima[0], N_grid)
+    y = np.linspace(0, maxima[1], N_grid)
+    z = np.linspace(0, maxima[2], N_grid)
+
+    x_grid_spacing = float(maxima[0])/N_grid
+    y_grid_spacing = float(maxima[1])/N_grid
+    z_grid_spacing = float(maxima[2])/N_grid
 
     # compute energy deposition distribution over voxels
     for traj in trajectories:
-
-        adjust_volume(traj)
 
         x_traj = np.array([evt['x'] for evt in traj.events])
         y_traj = np.array([evt['y'] for evt in traj.events])
@@ -72,10 +76,10 @@ def process_impact(trajectories, max_length, N_grid):
         
 
         E_left = [e["E"] for e in traj.events]
+        
         E_prev = E_left[0] #traj.events[0]["E"]
 
         # Assign energy lost to each grid element
-        # TODO Something is wrong with this
         #for index, event in enumerate(traj.events):
         for i in range(len(traj.events)):
             #x_ind = int(event["x"] / voxel_length)
@@ -84,12 +88,7 @@ def process_impact(trajectories, max_length, N_grid):
             x_ind = np.argmin(np.abs(x - x_traj[i]))
             y_ind = np.argmin(np.abs(y - y_traj[i]))
             z_ind = np.argmin(np.abs(z - z_traj[i]))
-            
-            # TODO HACK: some are out of bounds
-            if (x_ind > 50 or y_ind > 50 or z_ind > 50):
-                print >> sys.stderr, \
-                "index OoB: ({},{},{})".format(x_ind,y_ind,z_ind)
-                continue
+            #E_lost[x_ind, y_ind, z_ind] += abs
         
             #delta_E = E_prev - event["E"]
             delta_E = E_prev - E_left[i]
@@ -105,13 +104,13 @@ def process_impact(trajectories, max_length, N_grid):
     # compute energy generation rate from energy lost
     # Generation rate has a unit of m^-3 * s^-1
     # electron-hole pair production energy for CdTe: 4.43 eV
-    eh_gen = 4.43
-    #TODO: universal max_length and N_grid, yet individual volume dimensions?
-    voxel_volume = (voxel_length*1e-6)**3
+    eh_gen = 4.43  # for CdTe
+    voxel_volume = x_grid_spacing*y_grid_spacing*z_grid_spacing*1e-18  #(1e6)^3
     # e- generation time, here 1 ps (in seconds)
     gen_time = 1e-12
     G = E_lost / eh_gen / voxel_volume / gen_time
 
+    # convert back to meters
     x *= 1e-6
     y *= 1e-6
     z *= 1e-6
