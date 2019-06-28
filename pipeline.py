@@ -15,6 +15,17 @@ def pause():
     except:
         pass
 
+# TODO list
+# more materials, configurations in pyPENELOPE
+# charge density (generation_rate.py)
+# lumerical settings?
+# config file reading??
+# multithreading?!??
+# ?!??!??
+
+# Constants
+DATA_FILE_PATH = 'pe-trajectories.dat'
+
 # Set up parameters
 NUM_PARTICLES = 2
 BEAM_ENERGY = 350e3  # It defaults to this but we'll define it here anyways
@@ -25,10 +36,15 @@ BEAM_ENERGY = 350e3  # It defaults to this but we'll define it here anyways
 # Invoke pyPENELOPE
 run_penelope(NUM_PARTICLES, BEAM_ENERGY)
 
-time.sleep(10)  # TODO HACK (needs some time for .dat to be created)
+for i in range(10):
+    if os.path.isfile(DATA_FILE_PATH):
+        break
+    time.sleep(1)
+else:
+    print >> sys.stderr, "could not find data file"
 
 # Process scattering data, create .mat files
-output_files = process_data(datafile='pe-trajectories.dat', output_dir='./')
+output_files = process_data(datafile=DATA_FILE_PATH, output_dir='./')
 
 # Invoke Lumerical
 # Obtain optical modulation from get_3D_n_matrix.lsf (also in lumerical.py)
