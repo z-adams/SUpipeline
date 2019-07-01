@@ -16,9 +16,9 @@ def pause():
         pass
 
 # TODO list
-# more materials, configurations in pyPENELOPE
+# more materials, configurations in pyPENELOPE  CHECK
 # charge density (generation_rate.py)
-# lumerical settings?
+# lumerical settings? (mesh, convergence, transience?)
 # config file reading??
 # multithreading?!??
 # ?!??!??
@@ -27,14 +27,18 @@ def pause():
 DATA_FILE_PATH = 'pe-trajectories.dat'
 
 # Set up parameters
-NUM_PARTICLES = 2
+NUM_PARTICLES = 1
 BEAM_ENERGY = 350e3  # It defaults to this but we'll define it here anyways
+MATERIALS = [
+        {'name': 'CdTe', 'density': 5.85,
+    'elements': [('Cd', 0.5), ('Te', 0.5)]}
+    ]
+GEOMETRY = {'type': 1, 'layers': [('vacuum', -1), ('CdTe', 0.2)]}
 ## Hardcoded in penelope.py for now:
-# Material
 # Energy params
 
 # Invoke pyPENELOPE
-run_penelope(NUM_PARTICLES, BEAM_ENERGY)
+run_penelope(NUM_PARTICLES, BEAM_ENERGY, MATERIALS, GEOMETRY)
 
 for i in range(10):
     if os.path.isfile(DATA_FILE_PATH):
@@ -55,7 +59,8 @@ for charge_file in output_files:
     shutil.move(charge_file, "./{}/{}.mat".format(filename, filename))
     os.chdir(filename)
     out_file = "{}.ldev".format(filename)
-    run_detector_test(charge_file, output_filename=out_file)
+    run_detector_test(charge_file, output_filename=out_file, 
+            scripts=['../get_3D_n_matrix.lsf'])
     os.chdir("..")
 
 # Possibly plot using cal_ind_abs

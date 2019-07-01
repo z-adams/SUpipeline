@@ -3,6 +3,7 @@
 
 from penelopetools.api.input.penelope.description import Description
 from penelopetools.api.input.penelope.particle import ELECTRON
+from penelopetools.api.input.penelope.io import XMLFile
 from penelopetools.api.runner.shower import Shower2010
 from penelopetools.api.input.penelope.materials import *
 from penelopetools.api.input.pengeom.usergeometry.substrate import Substrate
@@ -11,6 +12,7 @@ from penelopetools.api.input.shower2010.source import Source
 from penelopetools.api.input.shower2010.jobproperties import Simulation
 from penelopetools.api.input.shower2010.options import Options
 from penelopetools.gui.util import get_config
+
 
 def run_penelope(num_particles=10, beam_energy=350e3, 
         materials=None, geometry=None):
@@ -25,10 +27,24 @@ def run_penelope(num_particles=10, beam_energy=350e3,
     mats -- list of materials to be used in the simulation*
     geom -- geometry definition for simulation*
 
-    * For argument datatype formats, see their respective sections below
+    * For detailed datatype formats, see their respective sections below
+    In general, materials and geometries are described by dicts containing
+    their parameters. Material names are used to instruct geometry which
+    material to use, and material IDs are handled internally, hidden from
+    the user (see below).
 
     returns nothing
     """
+
+    # material IDs are hidden from the user, they are instead referenced by name
+    # IDs are internally assigned and the name <-> ID relationship is 
+    # stored in the mat_id_pairs dictionary.
+    next_mat_id = 1  # 0 is reserved for vacuum
+    mat_id_pairs = {'vacuum': 0}
+
+    def get_mat_id(name):
+        return mat_id_pairs[name.lower()]
+
     ### Microscope ("source")
     src = Source(particle=ELECTRON, beam_energy=beam_energy)
 
@@ -41,7 +57,6 @@ def run_penelope(num_particles=10, beam_energy=350e3,
     # material = {
     #   'name': 'AbCd', 
     #   'density': density,
-    #   'id': id,
     #   'elements': [('Ab', fraction,), ('Cd', fraction,)...]
     #   }
 
@@ -60,10 +75,10 @@ def run_penelope(num_particles=10, beam_energy=350e3,
     # Default setup (CdTe substrate):
     if materials is None or geometry is None:
         materials = [
-                {'name': 'CdTe', 'density': 5.85, 'id': 1, 
+                {'name': 'CdTe', 'density': 5.85, 
                     'elements': [('Cd', 0.5), ('Te', 0.5)]}
                 ]
-        geometry = {'type': 0, 'material_id': 1}
+        geometry = {'type': 0, 'material': 'CdTe'}
 
 
     mats = Materials()
@@ -75,7 +90,9 @@ def run_penelope(num_particles=10, beam_energy=350e3,
         filename = "{}.mat".format(material['name'])
         mat = Material(name=material['name'], filename=filename, elements=elems,
                 simulation_parameters=params)
-        mats.add(mat, userid=material['id'])
+        mats.add(mat, userid=next_mat_id)
+        mat_id_pairs[material['name'].lower()] = next_mat_id 
+        next_mat_id += 1
         
     ### Geometry
 
@@ -86,26 +103,31 @@ def run_penelope(num_particles=10, beam_energy=350e3,
     # (only 2 currently implemented):
     # 0 - Substrate
     # 1 - multi-layer
+    # Since material IDs are hidden from the caller, materials are referenced
+    # by name (the same name used when it was defined; case-insensitive)
 
     # substrate = {
     #   'type': 0,
-    #   'material_id': i
+    #   'material': 'AbCd'
     #   }
 
     ## thickness is in meters
-    ## first layer is the substrate, usually (0, -1) (infinite vacuum)
+    ## first layer is the substrate, usually ('vacuum', -1) (infinite vacuum)
     # multilayer = {
     #   'type': 1,
-    #   'layers': [(mat_id, thickness,), ...]
+    #   'layers': [(material, thickness,), ...]
     #   }
 
     if geometry['type'] == 0:  # substrate
-        geom = Substrate(substrate_material_id=geometry['material_id'])
+        mat_id = get_mat_id(geometry['materia'])
+        geom = Substrate(substrate_material_id=mat_id)
 
     elif geometry['type'] == 1:  # multi-layer
-        geom = Multilayers(substrate_material_id=geometry['layers'][0])
+        mat_id = get_mat_id(geometry['layers'][0][0])
+        geom = MultiLayers(substrate_material_id=mat_id)
         for layer in geometry['layers'][1:]:  # skip substrate
-            geom.layers.append(Layer(thickness=layer[1], material_id=layer[0]))
+            mat_id = get_mat_id(layer[0])
+            geom.layers.append(Layer(thickness=layer[1], material_id=mat_id))
 
     else:
         raise IndexError
@@ -123,6 +145,9 @@ def run_penelope(num_particles=10, beam_energy=350e3,
     opt.materials = mats
     opt.simulation = sim
     opt.geometry = geom
+
+    with open('sim.xml', 'w') as f:
+        XMLFile().write(f, opt)
 
     CONFIG = get_config() #"/home/zander/.pypenelope/pypenelope.cfg"
     shwr = Shower2010(CONFIG, options=opt)

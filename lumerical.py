@@ -133,8 +133,9 @@ def run_detector_test(charge_data_filename, output_filename=None, scripts=None):
     device.run()
 
     # evaluate arbitrary scripts
-    for script in scripts:
-        device.feval(script)
+    if scripts is not None:
+        for script in scripts:
+            device.feval(script)
 
 if __name__ == '__main__':
     print "current location: {}".format(os.getcwd())
