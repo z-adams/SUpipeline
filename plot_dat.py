@@ -8,6 +8,8 @@ from parser import *
 DATA_FRAC = 5 # graph every nth data point
 LINE_ONLY = True # plot only lines (not points) for trajectories
 SCALE = 1e4 # scale the units
+ASSUME_FILENAME = True # assume dat file is called 'pe-trajectories.dat'
+DEFAULT_FILE = 'pe-trajectories.dat'
 
 def plot_dat(trajectories=None, filename=None):
     """ Plot a set of particle trajectories from pyPENELOPE
@@ -21,6 +23,10 @@ def plot_dat(trajectories=None, filename=None):
     returns nothing
     """
     if trajectories is None:
+        if filename is None:
+            if ASSUME_FILENAME:
+                if os.path.isfile(DEFAULT_FILE):
+                    filename = DEFAULT_FILE
         if filename is None:
             print "current location: {}".format(os.getcwd())
             filename = raw_input("Where is the .dat file?: ")

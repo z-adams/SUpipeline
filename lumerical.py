@@ -7,20 +7,25 @@ print "Platform: {}".format(plat)
 if plat == "Linux":
     lumapi = imp.load_source("lumapi", "/opt/lumerical/2019b/api/python/lumapi.py")
 elif plat == "Windows":
-    lumapi = imp.load_source("lumapi", "C:\\Program Files\\Lumerical\\2019b\\api\\python\\lumapi.py")
+    lumapi = imp.load_source("lumapi", "C:\\Program Files\\Lumerical\\DEVICE\\api\\python\\lumapi.py")
 elif plat == "Darwin":  # mac
     print "Not implemented yet, need to find path"
 
 # PyAPI essentially exposes the Lumerical script as python functions.
 # May end up just using a lsf if this is unnecessary
 
-def run_detector_test(charge_data_filename, output_filename=None, scripts=None):
+def run_detector_test(charge_data_filename, output_filename=None, 
+        material=None, mesh_options=None, results=None, scripts=None):
     """ Perform a test run of a (currently fixed to) CdTe volume given
-    the specified charge generation volume data.
+    the specified charge generation volume data. For settings formats, see 
+    respective locations in the code below
 
     arguments:
     charge_data_filename -- path to the charge generation data
     output_filename -- path to the output files, or None to use default
+    material -- name (string) of material to use (must match lumerical exactly)
+    mesh_options -- dict defining min and max edge lengths
+    results -- dict defining which results to compute
     scripts -- list of paths to arbitrary .lsf scripts to run after simulation
 
     returns nothing
@@ -28,10 +33,24 @@ def run_detector_test(charge_data_filename, output_filename=None, scripts=None):
     device = lumapi.DEVICE(hide=True)
 
     device.addchargesolver()
-    device.set("min edge length", 1e-6)
-    device.set("max edge length", 1e-5)
+
+    # mesh_options = {'min': 1e-6, 'max': 1e-5}
+    if mesh_options is not None:
+        device.set("min edge length", mesh_options['min'])
+        device.set("max edge length", mesh_options['max'])
+    else:
+        device.set("min edge length", 1e-6)
+        device.set("max edge length", 1e-5)
     props = device.get("spatial results")
-    props = props.replace("free_charge:", "").replace("space_charge:", "")
+
+    # results = {'free_charge': False, 'space_charge': False}
+    if results is not None:
+        for option in results.keys():
+            if results[option] == False:
+                props = props.replace("{}:".format(option), "")
+    else:
+        props = props.replace("free_charge:", "").replace("space_charge:", "")
+
     device.set("spatial results", props)
 
     device.addimportgen()
@@ -51,10 +70,12 @@ def run_detector_test(charge_data_filename, output_filename=None, scripts=None):
     sim_region_height = w_z + 2*electrode_thickness
 
     device.addmodelmaterial()
-    device.set("name", "CdTe")
-    device.addmaterialproperties("CT", "CdTe (Cadmium Telluride)")
-    device.select("materials::CdTe")
-    device.addmaterialproperties("HT", "CdTe (Cadmium Telluride)")
+    if material is None:
+        material = "CdTe (Cadmium Telluride)"
+    device.set("name", material)
+    device.addmaterialproperties("CT", material)
+    device.select("materials::{}".format(material))
+    device.addmaterialproperties("HT", material)
 
     device.addmodelmaterial()
     device.set("name", "Au")
@@ -85,7 +106,7 @@ def run_detector_test(charge_data_filename, output_filename=None, scripts=None):
     device.set("x", origin_x)
     device.set("y", origin_y)
     device.set("z", origin_z)
-    device.set("material", "CdTe")
+    device.set("material", material)
 
     device.addrect()
     device.set("name", "top_electrode")
@@ -103,7 +124,7 @@ def run_detector_test(charge_data_filename, output_filename=None, scripts=None):
     device.set("name", "top_electrode")
     device.set("bc mode", "steady state")
     device.set("sweep type", "single")
-    device.set("voltage", 0) #?
+    device.set("voltage", 0)
     device.set("surface type", "solid")
     device.set("solid", "top_electrode")
 
@@ -121,7 +142,7 @@ def run_detector_test(charge_data_filename, output_filename=None, scripts=None):
     device.set("name", "bottom_electrode")
     device.set("bc mode", "steady state")
     device.set("sweep type", "single")
-    device.set("voltage", 0) #?
+    device.set("voltage", 0)
     device.set("surface type", "solid")
     device.set("solid", "bottom_electrode")
 

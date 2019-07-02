@@ -1,7 +1,7 @@
 # Processes a set of trajectories associated with a single primary electron
 import numpy as np
 import sys
-from math import ceil
+from math import ceil, sqrt
 
 
 # Global coordinate bounds, to be minimized in find_data_ranges()
@@ -51,6 +51,12 @@ def preprocess_data(trajectories):
                 #if minima[i] > event[e]:
                 #    minima[i] = event[e]
 
+def deltaX(event0, event1):
+    dxx = (event0['x'] - event1['x'])**2
+    dyy = (event0['y'] - event1['y'])**2
+    dzz = (event0['z'] - event1['z'])**2
+    return sqrt(dxx + dyy + dzz)
+
 def process_impact(trajectories, N_grid):
     """ Compute charge generation data from a shower of trajectories
 
@@ -88,6 +94,8 @@ def process_impact(trajectories, N_grid):
         
         E_prev = E_left[0] #traj.events[0]["E"]
 
+        distance = 0
+
         # Assign energy lost to each grid element
         for i in range(len(traj.events)):
             x_ind = np.argmin(np.abs(x - x_traj[i]))
@@ -102,8 +110,19 @@ def process_impact(trajectories, N_grid):
                 #E_prev = event["E"]
                 E_prev = E_left[i]
 
-    #TODO timing->density calculations
+            #TODO hopefully this is ok (index shifted back by 1)
+            if i == 0:
+                dX = 0
+            else:
+                dX = deltaX(traj.events[i-1], traj.events[i])
 
+            v = (sqrt((E_left[i]+511e3)**2 - 511e3**2)/(511e3+E_left[i]))*3e10
+            if v == 0:
+                t = 0
+            else:
+                t = dX / v
+
+            distance += dX
 
     # Compute energy generation rate from energy lost (units: m^-3 * s^-1)
 

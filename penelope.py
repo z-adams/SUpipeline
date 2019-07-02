@@ -15,7 +15,7 @@ from penelopetools.gui.util import get_config
 
 
 def run_penelope(num_particles=10, beam_energy=350e3, 
-        materials=None, geometry=None):
+        materials=None, geometry=None, energy_parameters=None):
     """ Calls the penelope API to perform a PENELOPE simulation of electrons
     incidents on the specified geometry.
     
@@ -24,10 +24,11 @@ def run_penelope(num_particles=10, beam_energy=350e3,
     args:
     num_particles -- the number of primary particles to simulate
     beam_energy -- the energy of the primary particles
-    mats -- list of materials to be used in the simulation*
-    geom -- geometry definition for simulation*
+    materials -- list of materials to be used in the simulation
+    geometry -- geometry definition for simulation
+    energy_parameters -- dict containing energy parameters for the materials
 
-    * For detailed datatype formats, see their respective sections below
+    For detailed datatype formats, see their respective sections below
     In general, materials and geometries are described by dicts containing
     their parameters. Material names are used to instruct geometry which
     material to use, and material IDs are handled internally, hidden from
@@ -61,15 +62,16 @@ def run_penelope(num_particles=10, beam_energy=350e3,
     #   }
 
     # Energy Parameters: (equivalent to "use default simulation parameters")
-    energy_parameters = {
-            'absorption_energy_electron': beam_energy * 0.01,
-            'absorption_energy_photon': beam_energy * 0.001,
-            'absorption_energy_positron': beam_energy * 0.01,
-            'elastic_scattering_parameter_c1': 0.2,
-            'elastic_scattering_parameter_c2': 0.2,
-            'cutoff_energyloss_inelasticcollisions': beam_energy * 0.01,
-            'cutoff_energyloss_bremsstrahlungemission': beam_energy * 0.001 
-            }
+    if energy_parameters is None:
+        energy_parameters = {
+                'absorption_energy_electron': beam_energy * 0.01,
+                'absorption_energy_photon': beam_energy * 0.001,
+                'absorption_energy_positron': beam_energy * 0.01,
+                'elastic_scattering_parameter_c1': 0.2,
+                'elastic_scattering_parameter_c2': 0.2,
+                'cutoff_energyloss_inelasticcollisions': beam_energy * 0.01,
+                'cutoff_energyloss_bremsstrahlungemission': beam_energy * 0.001 
+                }
     params = SimulationParameters(**energy_parameters)
 
     # Default setup (CdTe substrate):
@@ -149,7 +151,7 @@ def run_penelope(num_particles=10, beam_energy=350e3,
     with open('sim.xml', 'w') as f:
         XMLFile().write(f, opt)
 
-    CONFIG = get_config() #"/home/zander/.pypenelope/pypenelope.cfg"
+    CONFIG = get_config()
     shwr = Shower2010(CONFIG, options=opt)
     shwr.start()
 
