@@ -43,11 +43,12 @@ def pause():
 
 # Constants
 DATA_FILE_PATH = '../pyPENELOPE/pe-trajectories.dat'
+USE_PENELOPE_FILE = True
 
 # Set up parameters
-NUM_PARTICLES = 3
+NUM_PARTICLES = 100
 BEAM_ENERGY = 350e3
-MATERIALS = [
+PEN_MATERIALS = [
         {'name': 'CdTe', 'density': 5.85,
     'elements': [('Cd', 0.5), ('Te', 0.5)]}
     ]
@@ -62,26 +63,34 @@ os.mkdir("pyPENELOPE")
 os.mkdir("results")
 os.mkdir("scripts")
 dirlist = os.listdir('.')
+if USE_PENELOPE_FILE and DATA_FILE_PATH.split("/")[-1] not in dirlist:
+    raise IOError("Data file not found!")
 for f in dirlist:
     if ".lsf" in f:
         SCRIPTS.append("../../scripts/{}".format(f))
         shutil.move(f, "./scripts/{}".format(f))
+    if DATA_FILE_PATH.split("/")[-1] in f:
+        shutil.move(f, "./pyPENELOPE/{}".format(f))
+        print "Using found data file"
 
 # Invoke pyPENELOPE
-os.chdir("pyPENELOPE")
-run_penelope(NUM_PARTICLES, BEAM_ENERGY, MATERIALS, GEOMETRY)
+if not USE_PENELOPE_FILE:
+    os.chdir("pyPENELOPE")
+    run_penelope(NUM_PARTICLES, BEAM_ENERGY, PEN_MATERIALS, GEOMETRY)
 
-for i in range(10):
-    if os.path.isfile(DATA_FILE_PATH):
-        break
-    time.sleep(1)
-else:
-    print >> sys.stderr, "data file was not produced"
-os.chdir("..")
+    for i in range(10):
+        if os.path.isfile(DATA_FILE_PATH):
+            break
+        time.sleep(1)
+    else:
+        print >> sys.stderr, "data file was not produced"
+    os.chdir("..")
 
 # Process scattering data, create .mat files
 os.chdir("results")
 output_files = process_data(datafile=DATA_FILE_PATH, output_dir='./')
+
+pause()
 
 # Invoke Lumerical, call .lsf script to get optical modulation
 for charge_file in output_files:

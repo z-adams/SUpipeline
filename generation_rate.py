@@ -30,18 +30,16 @@ def separate_collisions(trajectories):
     the primary and secondary trajectories resulting from each impact
     """
     showers = []  # list of lists of trajectories associated with a parent
-    inc_index = -1  # will be incremented on first trajectory
+    shower_index = -1  # will be incremented on first trajectory
     current_primary = 0
     for traj in trajectories:
         if traj.parent == 0:
             # new primary particle
             current_primary = traj.traj
-            inc_index += 1
+            shower_index += 1
             showers.append([])  # create space for new shower
-        elif traj.parent != current_primary:
-            # children should (hopefully) follow their primary in order
-            print >> sys.stderr, "weird trajectory ordering"
-        showers[inc_index].append(traj)
+        # Assuming all child showers follow their primary
+        showers[shower_index].append(traj)
     return showers
 
 def write_charge_gen_mat(x, y, z, G, filepath=None):
