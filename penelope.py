@@ -121,7 +121,7 @@ def run_penelope(num_particles=10, beam_energy=350e3,
     #   }
 
     if geometry['type'] == 0:  # substrate
-        mat_id = get_mat_id(geometry['materia'])
+        mat_id = get_mat_id(geometry['material'])
         geom = Substrate(substrate_material_id=mat_id)
 
     elif geometry['type'] == 1:  # multi-layer

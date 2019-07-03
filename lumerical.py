@@ -15,7 +15,8 @@ elif plat == "Darwin":  # mac
 # May end up just using a lsf if this is unnecessary
 
 def run_detector_test(charge_data_filename, output_filename=None, 
-        material=None, mesh_options=None, results=None, scripts=None):
+        material=None, mesh_options=None, results=None, scripts=None, 
+        pause=False):
     """ Perform a test run of a (currently fixed to) CdTe volume given
     the specified charge generation volume data. For settings formats, see 
     respective locations in the code below
@@ -27,6 +28,7 @@ def run_detector_test(charge_data_filename, output_filename=None,
     mesh_options -- dict defining min and max edge lengths
     results -- dict defining which results to compute
     scripts -- list of paths to arbitrary .lsf scripts to run after simulation
+    pause -- pause and prompt user after simulation runs before continuing
 
     returns nothing
     """
@@ -152,6 +154,12 @@ def run_detector_test(charge_data_filename, output_filename=None,
         savepath = output_filename
     device.save(savepath)
     device.run()
+
+    if pause:
+        try:
+            raw_input("press enter...")
+        except:
+            pass
 
     # evaluate arbitrary scripts
     if scripts is not None:

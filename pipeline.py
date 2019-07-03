@@ -43,7 +43,8 @@ def pause():
 
 # Constants
 DATA_FILE_PATH = '../pyPENELOPE/pe-trajectories.dat'
-USE_PENELOPE_FILE = True
+USE_PENELOPE_FILE = False
+LUM_SIM_LIMIT = -1 # -1 to simulate all trajectories, n to limit runs
 
 # Set up parameters
 NUM_PARTICLES = 100
@@ -90,16 +91,21 @@ if not USE_PENELOPE_FILE:
 os.chdir("results")
 output_files = process_data(datafile=DATA_FILE_PATH, output_dir='./')
 
-pause()
-
 # Invoke Lumerical, call .lsf script to get optical modulation
-for charge_file in output_files:
+for index, charge_file in enumerate(output_files):
+
+    # limit number of trajectories to simulate
+    if LUM_SIM_LIMIT > 0 and index > LUM_SIM_LIMIT:
+        break
+
+    # Configure simulation workspace
     filename = re.split(r'[/\\]', charge_file)  # strip preceeding path
     filename = re.sub(r'[\.]\w+', '', filename[-1])  # strip file extension
     os.mkdir(filename)
     shutil.move(charge_file, "./{}/{}.mat".format(filename, filename))
     os.chdir(filename)
     out_file = "{}.ldev".format(filename)
+
     run_detector_test(charge_file, material=LUM_MAT, mesh_options=LUM_MESH,
             results=LUM_RESULTS, output_filename=out_file, 
             scripts=SCRIPTS)
