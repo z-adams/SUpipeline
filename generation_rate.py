@@ -1,5 +1,6 @@
 import scipy.io as sio
 import os
+import logging
 import numpy as np
 from parser import *
 from process_impact import process_impact
@@ -19,6 +20,8 @@ from plot_both import plot_both
 
 # Events stored in a dict like so:
 #event = {"x": x, "y": y, "z": z, "E": E, "WGHT": W, "IBODY": B, "ICOL": C}
+
+logger = logging.getLogger(os.path.basename(__file__))
 
 def separate_collisions(trajectories):
     """ Separates the list of trajectories by parent primary particle
@@ -81,7 +84,10 @@ def process_data(datafile=None, output_dir=None, plot=False):
         datafile = raw_input("Where is the data?: ")
 
     # parse list of trajectories from pyPENELOPE, separate by parent primary
+    logger.info("Parsing datafile '%s'", datafile)
     all_trajectories = parse(datafile, trim=True)
+
+    logger.debug("Parsing complete, separating trajectories")
     showers = separate_collisions(all_trajectories)
 
     output_files = []
@@ -90,11 +96,15 @@ def process_data(datafile=None, output_dir=None, plot=False):
     if output_dir is None:
         output_dir = raw_input("Where should .mat files be saved?" \
                 "\n(directory ending with '/'): ")  # linux CLI for now
+    else:
+        logger.debug("Using specified output_dir")
 
     for index, shower in enumerate(showers):
         # Process an shower (set of trajectories) and save charge generation info
+        logger.debug("Processing shower #%d", index)
         x, y, z, G = process_impact(shower, N_grid=100)
         filepath = (output_dir + filename_template).format(index)
+        logger.debug("Writing charge generation matrix to '%s'", filepath)
         write_charge_gen_mat(x, y, z, G, filepath=filepath)
         if plot:
             plot_both(trajectories=shower, mat=filepath)

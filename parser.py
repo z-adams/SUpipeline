@@ -1,4 +1,8 @@
 import sys
+import logging
+import os
+
+logger = logging.getLogger(os.path.basename(__file__))
 
 class Trajectory:
     """ Represents a single trajectory and stores its list of events"""
@@ -20,6 +24,8 @@ def parse(filename, trim=True):
 
     returns a list of trajectories
     """
+    logger.info("Parsing file '%s'", filename)
+
     # read raw file into buffer
     buf = []
     with open(filename, 'r') as f:
@@ -28,6 +34,7 @@ def parse(filename, trim=True):
             if line.find('#') != -1:
                 continue
             buf.append(line)
+    logger.debug("File successfully read into buffer")
 
     # parse by traj
     num_lines = len(buf)
@@ -38,6 +45,7 @@ def parse(filename, trim=True):
 
         # parse header, begin new trajectory
         if line[0] == '0':
+            logger.debug("Beginning new trajectory")
             # file ends with line of 00000000s, exit if at end
             if i == num_lines - 1:
                 break
@@ -48,6 +56,7 @@ def parse(filename, trim=True):
                 i += 1
                 # take the number at the end of each header line and continue
                 info.append(int(buf[i].split()[1]))
+            logger.debug("Trajectory properties: %s", info)
             trajectories.append(
                     Trajectory(info[0], info[1], info[2], info[3], info[4]))
             i += 2 # skip over the '111111...' line to first line of data
@@ -59,8 +68,8 @@ def parse(filename, trim=True):
 
         # Removes extraneous datapoints based on IBODY value
         if trim and split[5] != 1:
-            print >> sys.stderr, "Delete evt #{} in traj {}: " \
-            "{}".format(i, trajectories[-1].traj, split)
+            logger.info("Deleting event #%d in trajectory %d: %s", i,
+                    trajectories[-1].traj, split)
             i += 1
             continue
 

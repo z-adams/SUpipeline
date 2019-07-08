@@ -13,6 +13,10 @@ from penelopetools.api.input.shower2010.jobproperties import Simulation
 from penelopetools.api.input.shower2010.options import Options
 from penelopetools.gui.util import get_config
 
+import logging
+import os
+
+logger = logging.getLogger(os.path.basename(__file__))
 
 def run_penelope(num_particles=10, beam_energy=350e3, 
         materials=None, geometry=None, energy_parameters=None):
@@ -36,6 +40,9 @@ def run_penelope(num_particles=10, beam_energy=350e3,
 
     returns nothing
     """
+    logger.debug("Running PENELOPE with parameters: num_particles=%d, " \
+        "beam_energy=%e, materials=%s, geometry=%s, energy_parameters=%s", 
+        num_particles, beam_energy, materials, geometry, energy_parameters)
 
     # material IDs are hidden from the user, they are instead referenced by name
     # IDs are internally assigned and the name <-> ID relationship is 
@@ -76,6 +83,7 @@ def run_penelope(num_particles=10, beam_energy=350e3,
 
     # Default setup (CdTe substrate):
     if materials is None or geometry is None:
+        logger.info("Auto-configuring material and geometry")
         materials = [
                 {'name': 'CdTe', 'density': 5.85, 
                     'elements': [('Cd', 0.5), ('Te', 0.5)]}
@@ -85,6 +93,7 @@ def run_penelope(num_particles=10, beam_energy=350e3,
 
     mats = Materials()
     for material in materials:
+        logger.debug("Processing material '%s'", material['name'])
         elems = Elements()
         elems.userdensity = material['density']
         for element in material['elements']:
@@ -121,17 +130,20 @@ def run_penelope(num_particles=10, beam_energy=350e3,
     #   }
 
     if geometry['type'] == 0:  # substrate
+        logger.debug("Geometry is type: substrate")
         mat_id = get_mat_id(geometry['material'])
         geom = Substrate(substrate_material_id=mat_id)
 
     elif geometry['type'] == 1:  # multi-layer
+        logger.debug("Geometry is type: multi-layer")
         mat_id = get_mat_id(geometry['layers'][0][0])
         geom = MultiLayers(substrate_material_id=mat_id)
         for layer in geometry['layers'][1:]:  # skip substrate
+            logger.debug("Adding layer '%s'", layer)
             mat_id = get_mat_id(layer[0])
             geom.layers.append(Layer(thickness=layer[1], material_id=mat_id))
-
     else:
+        logger.warning("Unrecognized geometry type index")
         raise IndexError
 
 
@@ -149,11 +161,14 @@ def run_penelope(num_particles=10, beam_energy=350e3,
     opt.geometry = geom
 
     with open('sim.xml', 'w') as f:
+        logger.debug("Writing .xml config file")
         XMLFile().write(f, opt)
 
     CONFIG = get_config()
     shwr = Shower2010(CONFIG, options=opt)
+    logger.debug("#### Beginning shower sim (PENELOPE logs to follow) ####")
     shwr.start()
+    logger.debug("#### Shower sim complete ####")
 
 if __name__ == '__main__':
     run_penelope()

@@ -1,9 +1,12 @@
 import imp
 import platform
 import os
+import logging
+
+logger = logging.getLogger(os.path.basename(__file__))
 
 plat = platform.system()
-print "Platform: {}".format(plat)
+logger.info("Platform: %s", plat)
 if plat == "Linux":
     lumapi = imp.load_source("lumapi", "/opt/lumerical/2019b/api/python/lumapi.py")
 elif plat == "Windows":
@@ -33,9 +36,11 @@ def run_detector_test(charge_data_filename, output_filename=None,
     returns nothing
     """
     device = lumapi.DEVICE(hide=True)
+    logger.debug("session launched")
 
     device.addchargesolver()
 
+    logger.debug("configuring mesh")
     # mesh_options = {'min': 1e-6, 'max': 1e-5}
     if mesh_options is not None:
         device.set("min edge length", mesh_options['min'])
@@ -45,6 +50,7 @@ def run_detector_test(charge_data_filename, output_filename=None,
         device.set("max edge length", 1e-5)
     props = device.get("spatial results")
 
+    logger.debug("configuring result output")
     # results = {'free_charge': False, 'space_charge': False}
     if results is not None:
         for option in results.keys():
@@ -55,6 +61,7 @@ def run_detector_test(charge_data_filename, output_filename=None,
 
     device.set("spatial results", props)
 
+    logger.debug("importing dataset")
     device.addimportgen()
     device.importdataset(charge_data_filename)
 
@@ -71,6 +78,7 @@ def run_detector_test(charge_data_filename, output_filename=None,
 
     sim_region_height = w_z + 2*electrode_thickness
 
+    logger.debug("configuring material: %s", material)
     device.addmodelmaterial()
     if material is None:
         material = "CdTe (Cadmium Telluride)"
@@ -85,6 +93,8 @@ def run_detector_test(charge_data_filename, output_filename=None,
     device.select("materials::Au")
     device.addmaterialproperties("HT", "Au (Gold) - CRC")
 
+    logger.debug("configuring simulation region: %f*%f*%f at (%f, %f, %f)",
+            w_x, w_y, sim_region_height, origin_x, origin_y, origin_z)
     device.select("simulation region")
     device.set("dimension", "3D")
     device.set("x span", w_x)
@@ -100,6 +110,7 @@ def run_detector_test(charge_data_filename, output_filename=None,
     device.set("save data", 1)
     device.set("filename", "charge.mat")
 
+    logger.debug("Creating interaction volume")
     device.addrect()
     device.set("name", "interaction_vol")
     device.set("x span", w_x)
@@ -110,6 +121,7 @@ def run_detector_test(charge_data_filename, output_filename=None,
     device.set("z", origin_z)
     device.set("material", material)
 
+    logger.debug("Creating electrodes")
     device.addrect()
     device.set("name", "top_electrode")
     device.set("x span", w_x)
@@ -150,10 +162,18 @@ def run_detector_test(charge_data_filename, output_filename=None,
 
     if output_filename is None:
         savepath = charge_data_filename.replace(".mat", ".ldev")
+        logger.debug("Generating automatic output filename '%s'", savepath)
     else:
         savepath = output_filename
+        logger.debug("Using specified output filename '%s'", savepath)
+
+    logger.debug("saving...")
     device.save(savepath)
+
+    logger.info("Lumerical setup complete, running simulation '%s'",
+            charge_data_filename)
     device.run()
+    logger.debug("Simulation complete")
 
     if pause:
         try:
@@ -163,8 +183,12 @@ def run_detector_test(charge_data_filename, output_filename=None,
 
     # evaluate arbitrary scripts
     if scripts is not None:
+        logger.debug("Scripts found")
         for script in scripts:
+            logger.debug("Running script '%s'", script)
             device.feval(script)
+    else:
+        logger.debug("No scripts found")
 
 if __name__ == '__main__':
     print "current location: {}".format(os.getcwd())
