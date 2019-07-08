@@ -12,14 +12,15 @@ you want to use one of the sub components manually.
 1. Create a new directory for the input and output. I put it just outside the
 SUpipeline directory, but it can go anywhere. 
 
-2. If you have any .lsf scripts to run on the Lumerical simulation results, or
-a `pe-trajectories.dat` file from PENELOPE that you want to use instead of the
-pipeline simulating its own trajectories, place them inside your new directory.
+2. If you have any Lumerical (`.lsf`) scripts to run on the Lumerical
+simulation results, or a `pe-trajectories.dat` file from PENELOPE that you want
+to use instead of the pipeline simulating its own trajectories, place them
+inside your new directory.
 
 3. Run pipeline.py from your new folder (see below)
 
 For example, I clone SUpipeline into a directory and create a new folder with
-my inputs (for the sake of example let's say I have both an .lsf script and an
+my inputs (for the sake of example let's say I have both an `.lsf` script and an
 existing batch of PENELOPE data), yielding the following situation:
 
 ```
@@ -50,16 +51,17 @@ Parent_dir/
  |-- myFolder/
  |    |-- pyPENELOPE/
  |    |    |-- pe-trajectories.dat
- |    |    +-- other files, if PENELOPE actually ran (not in this case)
- |    |
+ |    |    +-- other files, if PENELOPE actually ran (which it didn't in
+ |    |        this case, since we provided a pe-trajectories.dat file) 
  |    |-- results/
  |    |    |-- generation_0/
  |    |    |    |-- x_, y_, z_rect.mat
  |    |    |    +-- ref_rect.mat, abs_rect.mat
  |    |    |-- generation_1/
+ |    |    |    |-- ...
  |    |   ... 
- |    |    |-- generation_n/
- |    |   
+ |    |    +-- generation_n/
+ |    |         |-- ...
  |    +-- scripts/
  |         |-- get_3D_n_matrix.lsf
 
@@ -77,7 +79,7 @@ verbosity. The argument is used when running the pipeline, like this:
 ```console
 zander@T450s:~/.../myFolder$ python ../SUpipeline/pipeline.py --log=INFO
 ```
-
+---
 At the beginning of pipeline.py, there are a series of constants and parameters
 that should cover any configuration options necessary. They are:
 
@@ -99,8 +101,8 @@ batches
 
 * `RUN_NTH_SIM`: Used to force only a specific simulation to run in lumerical.
 If you had, say, 100 PENELOPE trajectories and their associated charge
-generation matrices, and only wanted to run \#37, you would set this variable to
-37\. Set it to -1 to simulate all trajectories.
+generation matrices, and only wanted to simulate `generation_37.mat`, you would
+set this variable to 37\. Set it to -1 to simulate all trajectories.
 
 #### Parameters
 * `NUM_PARTICLES`: The number of primary particles (i.e. showers) to simulate
@@ -109,14 +111,14 @@ in pyPENELOPE
 * `BEAM_ENERGY`: The kinetic energy of each primary
 
 * `PEN_MATERIALS`: The materials to use in the PENELOPE simulation (see
-[materials](#materials)
+[materials](#materials))
 
 * `GEOMETRY`: The geometry to use for the PENELOPE simulation (also see below)
 
 * `LUM_MAT`: The material to use for the Lumerical simulation (the same
 as used in PENELOPE; must have the exact same name as it does in Lumerical.
 
-* `LUM_RESULTS`: Dict defining which results to omit from the simulatoin. See
+* `LUM_RESULTS`: Dict defining which results to omit from the simulation. See
 lumerical.py for more information.
 
 #### Don't touch
@@ -147,6 +149,6 @@ symbol [case sensitive]) and its mass fraction.
 The geometries are constructed in more or less similar ways.
 
 Pipeline.py explicitly passes the default settings for these properties as an
-example; if you want to understand it better than that have a look in
+example; if you want to understand it better than that, have a look in
 penelope.py for more explanation and to see how the code actually uses those
 values.
