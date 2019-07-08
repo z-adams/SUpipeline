@@ -116,7 +116,7 @@ in pyPENELOPE
 * `GEOMETRY`: The geometry to use for the PENELOPE simulation (also see below)
 
 * `LUM_MAT`: The material to use for the Lumerical simulation (the same
-as used in PENELOPE; must have the exact same name as it does in Lumerical.
+as used in PENELOPE; must have the exact same name as it does in Lumerical)
 
 * `LUM_RESULTS`: Dict defining which results to omit from the simulation. See
 lumerical.py for more information.

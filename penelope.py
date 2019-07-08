@@ -166,9 +166,9 @@ def run_penelope(num_particles=10, beam_energy=350e3,
 
     CONFIG = get_config()
     shwr = Shower2010(CONFIG, options=opt)
-    logger.debug("#### Beginning shower sim (PENELOPE logs to follow) ####")
+    logger.info("#### Beginning shower sim (PENELOPE logs to follow) ####")
     shwr.start()
-    logger.debug("#### Shower sim complete ####")
+    logger.info("#### Shower sim complete ####")
 
 if __name__ == '__main__':
     run_penelope()

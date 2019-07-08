@@ -170,7 +170,7 @@ def run_detector_test(charge_data_filename, output_filename=None,
     logger.debug("saving...")
     device.save(savepath)
 
-    logger.info("Lumerical setup complete, running simulation '%s'",
+    logger.info("Lumerical setup complete, running simulation on '%s'",
             charge_data_filename)
     device.run()
     logger.debug("Simulation complete")
@@ -183,9 +183,9 @@ def run_detector_test(charge_data_filename, output_filename=None,
 
     # evaluate arbitrary scripts
     if scripts is not None:
-        logger.debug("Scripts found")
+        logger.info("Scripts found")
         for script in scripts:
-            logger.debug("Running script '%s'", script)
+            logger.info("Running script '%s'", script)
             device.feval(script)
     else:
         logger.debug("No scripts found")
