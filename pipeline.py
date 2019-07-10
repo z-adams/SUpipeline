@@ -14,8 +14,8 @@ import logging
 
 # OPTIONS
 USE_PENELOPE_FILE = False  # Use an existing pe-trajectories.dat file
-LUM_RUN_FROM_SIM = 22 # start at the nth sim (0 == beginning)
-LUM_RUN_TO_SIM = 24  # -1 to run to the last sim, else end at the nth
+LUM_RUN_FROM_SIM = 0  # start at the nth sim (0 == beginning)
+LUM_RUN_TO_SIM = -1  # -1 to run to the last sim, else end at the nth
 PURGE_LARGE_DATA = True  # Delete large files (.ldev, charge gen) after use
 RUN_NTH_SIM = -1  # If not less than zero, run only the nth lumerical sim
 

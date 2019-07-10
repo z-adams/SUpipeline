@@ -12,7 +12,7 @@ if plat == "Linux":
 elif plat == "Windows":
     lumapi = imp.load_source("lumapi", "C:\\Program Files\\Lumerical\\DEVICE\\api\\python\\lumapi.py")
 elif plat == "Darwin":  # mac
-    print "Not implemented yet, need to find path"
+    logger.warning("Mac path not implemented yet, need to find path")
 
 # PyAPI essentially exposes the Lumerical script as python functions.
 # May end up just using a lsf if this is unnecessary
@@ -191,6 +191,6 @@ def run_detector_test(charge_data_filename, output_filename=None,
         logger.debug("No scripts found")
 
 if __name__ == '__main__':
-    print "current location: {}".format(os.getcwd())
+    logger.info("current location: %s", os.getcwd())
     datafile = raw_input("Where is the charge data .mat?: ")
     run_detector_test(datafile)

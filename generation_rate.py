@@ -80,7 +80,7 @@ def process_data(datafile=None, output_dir=None, plot=False):
     """
     if datafile is None:
         # Get data file (currently prompting)
-        print "current location: {}".format(os.getcwd())
+        logger.info("current location: %s", os.getcwd())
         datafile = raw_input("Where is the data?: ")
 
     # parse list of trajectories from pyPENELOPE, separate by parent primary
