@@ -2,7 +2,7 @@ import scipy.io as sio
 import os
 import logging
 import numpy as np
-from parser import *
+from traj_parser import *
 from process_impact import process_impact
 from plot_dat import plot_dat
 from plot_traj import plot_traj
@@ -85,7 +85,7 @@ def process_data(datafile=None, output_dir=None, plot=False):
 
     # parse list of trajectories from pyPENELOPE, separate by parent primary
     logger.info("Parsing datafile '%s'", datafile)
-    all_trajectories = parse(datafile, trim=True)
+    all_trajectories = parse_traj(datafile, trim=True)
 
     logger.debug("Parsing complete, separating trajectories")
     showers = separate_collisions(all_trajectories)

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
 import os
-from parser import *
+from traj_parser import *
 
 DATA_FRAC = 5 # graph every nth data point
 LINE_ONLY = True # plot only lines (not points) for trajectories
@@ -30,7 +30,7 @@ def plot_dat(trajectories=None, filename=None):
         if filename is None:
             print "current location: {}".format(os.getcwd())
             filename = raw_input("Where is the .dat file?: ")
-        trajectories = parse(filename, trim=True)
+        trajectories = parse_traj(filename, trim=True)
 
     first = True
 

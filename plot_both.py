@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
 import os
-from parser import *
+from traj_parser import *
 import scipy.io as sio
 
 DATA_FRAC = 5 # graph every nth data point
@@ -29,7 +29,7 @@ def plot_both(trajectories=None, dat=None, mat=None):
         if dat is None:
             print "current location: {}".format(os.getcwd())
             dat = raw_input("Where is the .dat file?: ")
-        trajectories = parse(dat, trim=True)
+        trajectories = parse_traj(dat, trim=True)
     if mat is None:
         mat = raw_input("Where is the .mat file?: ")
     mat = sio.loadmat(mat)

@@ -40,7 +40,7 @@ def plot_traj(filename=None):
                     y.append(j)
                     z.append(k)
 
-    ax.plot(x, y, z, zdir=z, c=color, alpha=0.4)
+    #ax.plot(x, y, z, zdir=z, c=color, alpha=0.4)
 
     ax.set_xlabel("x")
     ax.set_ylabel("y")

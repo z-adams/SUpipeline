@@ -14,7 +14,7 @@ class Trajectory:
         self.exit = EXIT
         self.events = []
 
-def parse(filename, trim=True):
+def parse_traj(filename, trim=True):
     """ Splits a .dat file from pyPENELOPE into a list of trajectories
     Assumes that lines with comments will contain only comments.
 

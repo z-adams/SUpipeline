@@ -13,10 +13,11 @@ arg_parser = ArgumentParser()
 arg_parser.add_argument("--log", 
         help="Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
 loglevel = arg_parser.parse_args().log
-numeric_level= getattr(logging, loglevel.upper(), None)
-if not isinstance(numeric_level, int):
-    raise ValueError('Invalid log level')
-logging.basicConfig(level=numeric_level)
+if loglevel is not None:
+    numeric_level= getattr(logging, loglevel.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError('Invalid log level')
+    logging.basicConfig(level=numeric_level)
 logger = logging.getLogger(os.path.basename(__file__))
 ### stop ignoring ###
 
