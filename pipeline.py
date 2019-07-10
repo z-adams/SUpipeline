@@ -14,12 +14,13 @@ import logging
 
 # OPTIONS
 USE_PENELOPE_FILE = False  # Use an existing pe-trajectories.dat file
-LUM_SIM_LIMIT = -1  # -1 to simulate all trajectories, n to limit runs
+LUM_RUN_FROM_SIM = 22 # start at the nth sim (0 == beginning)
+LUM_RUN_TO_SIM = 24  # -1 to run to the last sim, else end at the nth
 PURGE_LARGE_DATA = True  # Delete large files (.ldev, charge gen) after use
 RUN_NTH_SIM = -1  # If not less than zero, run only the nth lumerical sim
 
 # PARAMETERS
-NUM_PARTICLES = 2
+NUM_PARTICLES = 100
 BEAM_ENERGY = 350e3
 PEN_MATERIALS = [
         {'name': 'CdTe', 'density': 5.85,
@@ -38,6 +39,7 @@ def build_parameters(num_particles=None, beam_energy=None, pen_materials=None,
     args = (num_particles, beam_energy, pen_materials, geometry, lum_mat,
             lum_mesh, lum_results)
 
+    # Error checking parameters
     if None in args:
         logger.error("Error building parameter dict from function arguments,"\
                 " missing args: %s", [e for e in args if e is None])
@@ -48,19 +50,26 @@ def build_parameters(num_particles=None, beam_energy=None, pen_materials=None,
         'LUM_MAT': lum_mat, 'LUM_MESH': lum_mesh, 'LUM_RESULTS': lum_results}
     return params
 
-def build_options(use_penelope_file=None, lum_sim_limit=None,
-        purge_large_data=None, run_nth_sim=None):
+def build_options(use_penelope_file=None, lum_run_from_sim=None,
+        lum_run_to_sim=None, purge_large_data=None, run_nth_sim=None):
      
-    args = (use_penelope_file, lum_sim_limit, purge_large_data, run_nth_sim)
+    args = (use_penelope_file, lum_run_from_sim, lum_run_to_sim, 
+            purge_large_data, run_nth_sim)
 
+    # Error checking options
     if None in args:
         logger.error("Error building parameter dict from function arguments,"\
                 " missing args: %s", [e for e in args if e is None])
         return None
+    if lum_run_from_sim > 0 and lum_run_to_sim < lum_run_from_sim:
+        logger.critical("LUM_RUN_TO_SIM must be larger than LUM_RUN_FROM_SIM")
+        return None
 
     options = {'USE_PENELOPE_FILE': use_penelope_file, 
-        'LUM_SIM_LIMIT': lum_sim_limit, 'PURGE_LARGE_DATA': purge_large_data, 
-        'RUN_NTH_SIM': run_nth_sim}
+            'LUM_RUN_FROM_SIM': lum_run_from_sim,
+            'LUM_RUN_TO_SIM': lum_run_to_sim,
+            'PURGE_LARGE_DATA': purge_large_data, 
+            'RUN_NTH_SIM': run_nth_sim}
     return options
 
 # Create set of default parameters and options
@@ -77,9 +86,8 @@ def default_parameters():
             )
 
 def default_options():
-    return build_options(use_penelope_file=False, lum_sim_limit=-1, 
-            purge_large_data=True, run_nth_sim=-1)
-
+    return build_options(use_penelope_file=False, lum_run_from_sim=0,
+            lum_run_to_sim=-1, purge_large_data=True, run_nth_sim=-1)
 
 
 DEFAULT_PARAMS = default_parameters()
@@ -107,7 +115,7 @@ def pause():
     except:
         pass
 
-def configure_and_run_lumerical(charge_file, params, options):
+def configure_and_run_lumerical(charge_file, params, options, scripts=None):
     # Configure simulation workspace
     filename = re.split(r'[/\\]', charge_file)  # strip preceeding path
     filename = re.sub(r'[\.]\w+', '', filename[-1])  # strip file extension
@@ -123,7 +131,7 @@ def configure_and_run_lumerical(charge_file, params, options):
             mesh_options=params['LUM_MESH'],
             results=params['LUM_RESULTS'],
             output_filename=out_file, 
-            scripts=SCRIPTS
+            scripts=scripts
             )
 
     # Clean up directory
@@ -221,25 +229,46 @@ def run_pipeline(params=DEFAULT_PARAMS, options=DEFAULT_OPTIONS, scripts=None):
     output_files = process_data(datafile=DATA_FILE_PATH, output_dir='./')
     logger.debug("output files discovered: '%s'", output_files)
 
+    ## Options for running select simulations
+
+    # Running one specific simulation
     if (options['RUN_NTH_SIM'] > 0):
         logger.info("Running lumerical on single file '%s'", 
                 output_files[options['RUN_NTH_SIM']])
         configure_and_run_lumerical(
-                output_files[options['RUN_NTH_SIM']], params, options)
+                output_files[options['RUN_NTH_SIM']], params, options, SCRIPTS)
     else:
-        if LUM_SIM_LIMIT > 0:
-            logger.info("Running lumerical on first '%s' files")
+    # Running a range of simulations
+        from_sim = options['LUM_RUN_FROM_SIM']
+        to_sim = options['LUM_RUN_TO_SIM']
+        if from_sim < 1 and to_sim < 0:
+            message = "Running lumerical on all files"
         else:
-            logger.info("Running lumerical on all files")
+            msg_from_sim = output_files[from_sim]
+            if to_sim < 0:
+                msg_to_sim = output_files[-1]
+            else:
+                msg_to_sim = output_files[to_sim]
+            message = "Running lumerical on trajectories {} through {}".format(
+                    msg_from_sim, msg_to_sim)
+            logger.info(message)
+
         # Invoke Lumerical, call .lsf script to get optical modulation
         for index, charge_file in enumerate(output_files):
 
-            # limit number of trajectories to simulate
-            sim_limit = options['LUM_SIM_LIMIT']
-            if sim_limit > 0 and index > sim_limit:
+            # Skip until starting point
+            if index < from_sim:
+                continue
+            elif index == from_sim:
+                logger.info("Beginning from sim #%d", index)
+
+            # Break if ending point reached
+            if to_sim > 0 and index > to_sim:
                 logger.info("Hit maximum simulations: quitting")
                 break
-            configure_and_run_lumerical(charge_file, params, options)
+
+            # Run simulation
+            configure_and_run_lumerical(charge_file, params, options, SCRIPTS)
 
 if __name__ == '__main__':
     # If this script is main, we can assume user wants to use local parameters
@@ -257,7 +286,8 @@ if __name__ == '__main__':
     logger.info("Building local options") 
     LOCAL_OPTIONS = build_options(
             use_penelope_file=USE_PENELOPE_FILE,
-            lum_sim_limit=LUM_SIM_LIMIT,
+            lum_run_from_sim=LUM_RUN_FROM_SIM,
+            lum_run_to_sim=LUM_RUN_TO_SIM,
             purge_large_data=PURGE_LARGE_DATA,
             run_nth_sim=RUN_NTH_SIM
             )
