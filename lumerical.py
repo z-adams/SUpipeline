@@ -2,6 +2,7 @@ import imp
 import platform
 import os
 import logging
+import threading
 
 logger = logging.getLogger(os.path.basename(__file__))
 
@@ -13,6 +14,16 @@ elif plat == "Windows":
     lumapi = imp.load_source("lumapi", "C:\\Program Files\\Lumerical\\2019b\\api\\python\\lumapi.py")
 elif plat == "Darwin":  # mac
     logger.warning("Mac path not implemented yet, need to find path")
+
+SIM_TIME = 60 * 5  # Simulations take about 5 minutes
+SIMULATION_TIMEOUT = 10 #2 * SIM_TIME  # Give up to 2x typical time before timeout
+
+def start_sim_timeout(device, event, was_interrupted):
+    interrupted = event.wait(timeout=SIMULATION_TIMEOUT)
+    if not interrupted:
+        logger.critical("#### TIMEOUT ####")
+        device.close()
+        was_interrupted = False
 
 # PyAPI essentially exposes the Lumerical script as python functions.
 # May end up just using a lsf if this is unnecessary
@@ -40,7 +51,7 @@ def run_detector_test(charge_data_filename, output_filename=None,
 
     device.addchargesolver()
 
-    logger.debug("configuring mesh")
+    logger.debug("configuring solver")
     # mesh_options = {'min': 1e-6, 'max': 1e-5}
     if mesh_options is not None:
         device.set("min edge length", mesh_options['min'])
@@ -49,6 +60,7 @@ def run_detector_test(charge_data_filename, output_filename=None,
         device.set("min edge length", 1e-6)
         device.set("max edge length", 1e-5)
     props = device.get("spatial results")
+    #device.set("gradient mixing", "fast")
 
     logger.debug("configuring result output")
     # results = {'free_charge': False, 'space_charge': False}
@@ -75,6 +87,7 @@ def run_detector_test(charge_data_filename, output_filename=None,
 
     electrode_thickness = 2e-6
     electrode_position = float(w_z) / 2
+    margin = 2e-7
 
     sim_region_height = w_z + 2*electrode_thickness
 
@@ -130,8 +143,9 @@ def run_detector_test(charge_data_filename, output_filename=None,
     device.set("x", origin_x)
     device.set("y", origin_y)
     device.set("z", origin_z)
-    device.set("z min", origin_z + electrode_position)
-    device.set("z max", origin_z + electrode_position + electrode_thickness)
+    device.set("z min", origin_z + electrode_position - margin)
+    device.set("z max", origin_z + electrode_position 
+            + electrode_thickness + margin)
     device.set("material", "Au")
 
     device.addelectricalcontact()
@@ -148,8 +162,9 @@ def run_detector_test(charge_data_filename, output_filename=None,
     device.set("y span", w_y)
     device.set("x", origin_x)
     device.set("y", origin_y)
-    device.set("z min", origin_z - electrode_position - electrode_thickness)
-    device.set("z max", origin_z - electrode_position)
+    device.set("z min", origin_z - electrode_position 
+            - electrode_thickness - margin)
+    device.set("z max", origin_z - electrode_position + margin)
     device.set("material", "Au")
 
     device.addelectricalcontact()
@@ -170,10 +185,24 @@ def run_detector_test(charge_data_filename, output_filename=None,
     logger.debug("saving...")
     device.save(savepath)
 
+    # Set up timeout thread
+    #timer = threading.Event()
+    was_interrupted = True
+    #timeout = threading.Thread(target=start_sim_timeout, 
+    #        args=(device, timer, was_interrupted))
+    #timeout.start()
+
     logger.info("Lumerical setup complete, running simulation on '%s'",
             charge_data_filename)
     device.run()
-    logger.debug("Simulation complete")
+    if was_interrupted:
+        logger.debug("Simulation complete")
+    else:
+        logger.error("Simulation timeout -- killed")
+
+    # Kill timeout thread
+    #timer.set()
+    #timeout.join()
 
     if pause:
         try:

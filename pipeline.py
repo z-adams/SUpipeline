@@ -17,7 +17,7 @@ USE_PENELOPE_FILE = False  # Use an existing pe-trajectories.dat file
 LUM_RUN_FROM_SIM = 0  # start at the nth sim (0 == beginning)
 LUM_RUN_TO_SIM = -1  # -1 to run to the last sim, else end at the nth
 PURGE_LARGE_DATA = True  # Delete large files (.ldev, charge gen) after use
-RUN_NTH_SIM = -1  # If not less than zero, run only the nth lumerical sim
+RUN_NTH_SIM = 7  # If not less than zero, run only the nth lumerical sim
 
 # PARAMETERS
 NUM_PARTICLES = 10
@@ -124,8 +124,14 @@ def get_file_number(filename):
 # >> find_file_number_in_lits(3, ['gen_2.mat', 'gen_3.mat', 'gen_4.mat']
 # returns 1, the index of gen_3.mat in the list
 def find_file_number_in_list(number, file_list):
-    return [index for index, name in enumerate(file_list) 
-            if int(re.search(r'(\d+(?=.mat))', name).group(0)) == number][0]
+    indices = [index for index, name in enumerate(file_list) 
+            if int(re.search(r'(\d+(?=.mat))', name).group(0)) == number]
+    if not indices:
+        return None
+    if indices[0] is not indices[-1]:
+        logger.warning("find_file_number_in_list found more than one match "\
+                "for %d in %s", number, file_list)
+    return indices[0]
 
 def configure_and_run_lumerical(charge_file, params, options, scripts=None):
     # Configure simulation workspace
@@ -262,8 +268,6 @@ def run_pipeline(params=DEFAULT_PARAMS, options=DEFAULT_OPTIONS, scripts=None):
         logger.debug("Dirlist: %s", os.listdir('.'))
         output_files = [f for f in os.listdir('.') if ".mat" in f]
         logger.debug("Detected .mat files: %s", output_files)
-        for f in output_files:
-            logger.debug(re.search(r'(\d+(?=.mat))', f).group(0))
         output_files.sort(key=lambda x:int(re.search(r'(\d+(?=.mat))', x).group(0)))
     else:
         output_files = process_data(datafile=DATA_FILE_PATH, output_dir='./')
@@ -273,10 +277,9 @@ def run_pipeline(params=DEFAULT_PARAMS, options=DEFAULT_OPTIONS, scripts=None):
 
     # Running one specific simulation
     if (options['RUN_NTH_SIM'] >= 0):
-        logger.info("Running lumerical on single file '%s'", 
-                output_files[options['RUN_NTH_SIM']])
-        configure_and_run_lumerical(
-                output_files[options['RUN_NTH_SIM']], params, options, SCRIPTS)
+        i = find_file_number_in_list(options['RUN_NTH_SIM'], output_files)
+        logger.info("Running lumerical on single file '%s'", output_files[i])
+        configure_and_run_lumerical(output_files[i], params, options, SCRIPTS)
     else:
     # Running a range of simulations
         from_sim = options['LUM_RUN_FROM_SIM']
