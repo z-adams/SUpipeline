@@ -14,8 +14,8 @@ import logging
 
 # OPTIONS
 USE_PENELOPE_FILE = False  # Use an existing pe-trajectories.dat file
-LUM_RUN_FROM_SIM = 6  # start at the nth sim (0 == beginning)
-LUM_RUN_TO_SIM = 8  # -1 to run to the last sim, else end at the nth
+LUM_RUN_FROM_SIM = 0  # start at the nth sim (0 == beginning)
+LUM_RUN_TO_SIM = -1  # -1 to run to the last sim, else end at the nth
 PURGE_LARGE_DATA = True  # Delete large files (.ldev, charge gen) after use
 RUN_NTH_SIM = -1  # If not less than zero, run only the nth lumerical sim
 
@@ -263,7 +263,7 @@ def run_pipeline(params=DEFAULT_PARAMS, options=DEFAULT_OPTIONS, scripts=None):
         output_files = [f for f in os.listdir('.') if ".mat" in f]
         logger.debug("Detected .mat files: %s", output_files)
         for f in output_files:
-            print re.search(r'(\d+(?=.mat))', f).group(0)
+            logger.debug(re.search(r'(\d+(?=.mat))', f).group(0))
         output_files.sort(key=lambda x:int(re.search(r'(\d+(?=.mat))', x).group(0)))
     else:
         output_files = process_data(datafile=DATA_FILE_PATH, output_dir='./')
