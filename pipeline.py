@@ -14,13 +14,13 @@ import logging
 
 # OPTIONS
 USE_PENELOPE_FILE = False  # Use an existing pe-trajectories.dat file
-LUM_RUN_FROM_SIM = 0  # start at the nth sim (0 == beginning)
-LUM_RUN_TO_SIM = -1  # -1 to run to the last sim, else end at the nth
+LUM_RUN_FROM_SIM = 6  # start at the nth sim (0 == beginning)
+LUM_RUN_TO_SIM = 8  # -1 to run to the last sim, else end at the nth
 PURGE_LARGE_DATA = True  # Delete large files (.ldev, charge gen) after use
 RUN_NTH_SIM = -1  # If not less than zero, run only the nth lumerical sim
 
 # PARAMETERS
-NUM_PARTICLES = 100
+NUM_PARTICLES = 10
 BEAM_ENERGY = 350e3
 PEN_MATERIALS = [
         {'name': 'CdTe', 'density': 5.85,
@@ -61,7 +61,7 @@ def build_options(use_penelope_file=None, lum_run_from_sim=None,
         logger.error("Error building parameter dict from function arguments,"\
                 " missing args: %s", [e for e in args if e is None])
         return None
-    if lum_run_from_sim > 0 and lum_run_to_sim < lum_run_from_sim:
+    if lum_run_to_sim > 0 and lum_run_to_sim < lum_run_from_sim:
         logger.critical("LUM_RUN_TO_SIM must be larger than LUM_RUN_FROM_SIM")
         return None
 
@@ -116,10 +116,24 @@ def pause():
     except:
         pass
 
+def get_file_number(filename):
+    return re.search(r'(\d+(?=.mat))', filename).group(0)
+
+# Finds the index of a file with a given number in a list
+# Example:
+# >> find_file_number_in_lits(3, ['gen_2.mat', 'gen_3.mat', 'gen_4.mat']
+# returns 1, the index of gen_3.mat in the list
+def find_file_number_in_list(number, file_list):
+    return [index for index, name in enumerate(file_list) 
+            if int(re.search(r'(\d+(?=.mat))', name).group(0)) == number][0]
+
 def configure_and_run_lumerical(charge_file, params, options, scripts=None):
     # Configure simulation workspace
     filename = re.split(r'[/\\]', charge_file)  # strip preceeding path
     filename = re.sub(r'[\.]\w+', '', filename[-1])  # strip file extension
+    if os.path.isdir(filename):
+        logger.warn("Directory '%s' already exists, skipping sim", filename)
+        return
     logger.debug("creating directory for file: %s", filename)
     os.mkdir(filename)
     shutil.move(charge_file, "./{}/{}.mat".format(filename, filename))
@@ -182,33 +196,50 @@ def run_pipeline(params=DEFAULT_PARAMS, options=DEFAULT_OPTIONS, scripts=None):
         for key in options:
             logger.info("{}: {}".format(key, options[key]))
 
-    # Set up directories, find .lsf files and move into ./scripts
-    os.mkdir("pyPENELOPE")
-    os.mkdir("results")
-    os.mkdir("scripts")
-    dirlist = os.listdir('.')
-    logger.debug('dirlist: %s', dirlist)
-
     if scripts is not None:
         SCRIPTS.extend(scripts)
 
-    if (options['USE_PENELOPE_FILE'] and 
-            DATA_FILE_PATH.split("/")[-1] not in dirlist):
-        raise IOError("Data file not found!")
-    for f in dirlist:
-        if ".lsf" in f:
-            logger.debug("found .lsf file '%s'", f)
-            SCRIPTS.append("../../scripts/{}".format(f))
-            shutil.move(f, "./scripts/{}".format(f))
-        if DATA_FILE_PATH.split("/")[-1] in f:
-            logger.info("found data file '%s' in dir",
+    # Determine if the directory structure is already set up
+    if all(folder in os.listdir('.') 
+            for folder in ["pyPENELOPE", "results", "scripts"]):
+        logger.info("Existing directory structure detected, resuming")
+        STRUCTURE_EXISTS = True
+    else:
+        STRUCTURE_EXISTS = False
+
+    if STRUCTURE_EXISTS is False:
+        # Set up directories, find .lsf files and move into ./scripts
+        os.mkdir("pyPENELOPE")
+        os.mkdir("results")
+        os.mkdir("scripts")
+        dirlist = os.listdir('.')
+        logger.debug('dirlist: %s', dirlist)
+
+        if (options['USE_PENELOPE_FILE'] and 
+                DATA_FILE_PATH.split("/")[-1] not in dirlist):
+            raise IOError("Data file not found!")
+        for f in dirlist:
+            if ".lsf" in f:
+                logger.debug("found .lsf file '%s'", f)
+                SCRIPTS.append("../../scripts/{}".format(f))
+                shutil.move(f, "./scripts/{}".format(f))
+            if DATA_FILE_PATH.split("/")[-1] in f:
+                logger.info("found data file '%s' in dir",
+                        DATA_FILE_PATH.split('/')[-1])
+                shutil.move(f, "./pyPENELOPE/{}".format(f))
+    else:
+        for f in os.listdir('scripts'):
+            if ".lsf" in f:
+                logger.debug("found .lsf file '%s' in scripts/", f)
+                SCRIPTS.append("../../scripts/{}".format(f))
+        if DATA_FILE_PATH.split("/")[-1] in os.listdir('pyPENELOPE'):
+            logger.info("found data file '%s' in pyPENELOPE/",
                     DATA_FILE_PATH.split('/')[-1])
-            shutil.move(f, "./pyPENELOPE/{}".format(f))
 
     logger.info("Found SCRIPTS: %s", SCRIPTS)
 
     # Invoke pyPENELOPE
-    if not USE_PENELOPE_FILE:
+    if not STRUCTURE_EXISTS and not USE_PENELOPE_FILE:
         os.chdir("pyPENELOPE")
         logger.info("Running pyPENELOPE...")
         run_penelope(params['NUM_PARTICLES'], params['BEAM_ENERGY'],
@@ -227,13 +258,21 @@ def run_pipeline(params=DEFAULT_PARAMS, options=DEFAULT_OPTIONS, scripts=None):
 
     # Process scattering data, create .mat files
     os.chdir("results")
-    output_files = process_data(datafile=DATA_FILE_PATH, output_dir='./')
+    if STRUCTURE_EXISTS:
+        logger.debug("Dirlist: %s", os.listdir('.'))
+        output_files = [f for f in os.listdir('.') if ".mat" in f]
+        logger.debug("Detected .mat files: %s", output_files)
+        for f in output_files:
+            print re.search(r'(\d+(?=.mat))', f).group(0)
+        output_files.sort(key=lambda x:int(re.search(r'(\d+(?=.mat))', x).group(0)))
+    else:
+        output_files = process_data(datafile=DATA_FILE_PATH, output_dir='./')
     logger.debug("output files discovered: '%s'", output_files)
 
     ## Options for running select simulations
 
     # Running one specific simulation
-    if (options['RUN_NTH_SIM'] > 0):
+    if (options['RUN_NTH_SIM'] >= 0):
         logger.info("Running lumerical on single file '%s'", 
                 output_files[options['RUN_NTH_SIM']])
         configure_and_run_lumerical(
@@ -245,26 +284,33 @@ def run_pipeline(params=DEFAULT_PARAMS, options=DEFAULT_OPTIONS, scripts=None):
         if from_sim < 1 and to_sim < 0:
             message = "Running lumerical on all files"
         else:
-            msg_from_sim = output_files[from_sim]
+            from_index = find_file_number_in_list(from_sim, output_files)
+            msg_from_sim = output_files[from_index]
             if to_sim < 0:
                 msg_to_sim = output_files[-1]
             else:
-                msg_to_sim = output_files[to_sim]
+                to_index = find_file_number_in_list(to_sim, output_files)
+                msg_to_sim = output_files[to_index]
             message = "Running lumerical on trajectories {} through {}".format(
                     msg_from_sim, msg_to_sim)
             logger.info(message)
+            pass
 
         # Invoke Lumerical, call .lsf script to get optical modulation
-        for index, charge_file in enumerate(output_files):
+        for charge_file in output_files:
+
+            # Since we can start at any file, we need to know the index of the
+            # file itself, not the index of the file in output_files
+            file_index = int(re.search(r'(\d+(?=.mat))', charge_file).group(0))
 
             # Skip until starting point
-            if index < from_sim:
+            if file_index < from_sim:
                 continue
-            elif index == from_sim:
-                logger.info("Beginning from sim #%d", index)
+            elif file_index == from_sim:
+                logger.info("Beginning from sim #%d", file_index)
 
             # Break if ending point reached
-            if to_sim > 0 and index > to_sim:
+            if to_sim > 0 and file_index > to_sim:
                 logger.info("Hit maximum simulations: quitting")
                 break
 
