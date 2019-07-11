@@ -10,7 +10,7 @@ logger.info("Platform: %s", plat)
 if plat == "Linux":
     lumapi = imp.load_source("lumapi", "/opt/lumerical/2019b/api/python/lumapi.py")
 elif plat == "Windows":
-    lumapi = imp.load_source("lumapi", "C:\\Program Files\\Lumerical\\DEVICE\\api\\python\\lumapi.py")
+    lumapi = imp.load_source("lumapi", "C:\\Program Files\\Lumerical\\2019b\\api\\python\\lumapi.py")
 elif plat == "Darwin":  # mac
     logger.warning("Mac path not implemented yet, need to find path")
 
