@@ -22,7 +22,7 @@ logger = logging.getLogger(os.path.basename(__file__))
 ### stop ignoring ###
 
 # Specify any scripts (located in batch root dir) to run
-SCRIPTS = ["get_3D_n_matrix.lsf"]
+SCRIPTS = []
 
 # Do-it-yourself batch config: write a function that generates a list of
 # configurations* to run through the pipeline
@@ -44,9 +44,51 @@ def energy_sweep():
                 })
     return configurations
 
+def dianas_sweep():
+    MATERIALS = [{'name': 'CdTe', 
+                  'density': 5.85,
+                  'elements': [('Cd', 0.5), ('Te', 0.5)]},
+                 {'name': 'YAG',
+                  'density': 4.65,
+                  'elements': [('Y', 0.449), ('Al', 0.227), ('O', 0.324)]},
+                 {'name': 'BSO',
+                  'density': 2.47968,
+                  'elements': [('Bi', 0.752), ('O', 0.172), ('Si', 0.076)]},
+                 {'name': 'BGO',
+                  'density': 4.13281,
+                  'elements': [('Bi', 0.671), ('Ge', 0.175), ('O', 0.154)]}
+                 ]
+    BEAM_ENERGIES = [350e3, 400e3, 450e3]
+    THICKNESSES = [0.2, 0.4, 1.0, 1.5, 2.0]
+
+    configurations = []
+    options = default_options()
+    options['RUN_LUMERICAL'] = False
+    for MAT in MATERIALS:
+        GEOMETRIES = [
+                {'type': 1, 'layers': [('vacuum', -1), (MAT['name'], thickness)]}
+                for thickness in THICKNESSES
+                ]
+        for E in BEAM_ENERGIES:
+            for GEO in GEOMETRIES:
+                logger.info("Generating for E:%s, GEO:%s, MAT:%s", E, GEO, MAT)
+                params = default_parameters()
+                params['NUM_PARTICLES'] = 100
+                params['BEAM_ENERGY'] = E
+                params['GEOMETRY'] = GEO
+                params['PEN_MATERIALS'] = MAT
+                configurations.append(
+                        {'name': "{0}_{1:d}keV_{2:d}um".format(MAT['name'],
+                            int(E/1000), 
+                            int(GEO['layers'][1][1]*1000)),
+                         'parameters': params,
+                         'options': options
+                         })
+    return configurations
+
 def main():
 
-    configurations = energy_sweep() # your generator function here
+    configurations = dianas_sweep() # your generator function here
     scripts = ["../../../{}".format(s) for s in SCRIPTS]
 
     for config in configurations:
@@ -60,4 +102,7 @@ def main():
         os.chdir('../..')
 
 if __name__ == '__main__':
-    main()
+    #main()
+    configs = dianas_sweep()
+    for config in configs:
+        print config['name']

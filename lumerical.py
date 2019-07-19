@@ -46,7 +46,7 @@ def run_detector_test(charge_data_filename, output_filename=None,
 
     returns nothing
     """
-    device = lumapi.DEVICE(hide=True)
+    device = lumapi.DEVICE() #hide=True)
     logger.debug("session launched")
 
     device.addchargesolver()

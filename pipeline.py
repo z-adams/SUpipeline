@@ -7,6 +7,7 @@ import time
 import os
 import shutil
 import logging
+from math import log10
 
 ### Arguments ###
 # For more information about geometries and materials, see the README and
@@ -14,19 +15,21 @@ import logging
 
 # OPTIONS
 USE_PENELOPE_FILE = False  # Use an existing pe-trajectories.dat file
+RUN_LUMERICAL = True  # Running of lumerical can be disabled
 LUM_RUN_FROM_SIM = 0  # start at the nth sim (0 == beginning)
 LUM_RUN_TO_SIM = -1  # -1 to run to the last sim, else end at the nth
-PURGE_LARGE_DATA = True  # Delete large files (.ldev, charge gen) after use
-RUN_NTH_SIM = 7  # If not less than zero, run only the nth lumerical sim
+PURGE_LARGE_DATA = False  # Delete large files (.ldev, charge gen) after use
+RUN_NTH_SIM = -1 # If not less than zero, run only the nth lumerical sim
 
 # PARAMETERS
-NUM_PARTICLES = 10
+NUM_PARTICLES = 100
 BEAM_ENERGY = 350e3
 PEN_MATERIALS = [
         {'name': 'CdTe', 'density': 5.85,
     'elements': [('Cd', 0.5), ('Te', 0.5)]}
     ]
-GEOMETRY = {'type': 1, 'layers': [('vacuum', -1), ('CdTe', 0.2)]}
+#GEOMETRY = {'type': 1, 'layers': [('vacuum', -1), ('CdTe', 0.2)]}
+GEOMETRY = {'type': 0, 'material': 'CdTe'}
 LUM_MAT = "CdTe (Cadmium Telluride)"
 LUM_MESH = {'min': 1e-6, 'max': 1e-5}
 LUM_RESULTS = {'free_charge': False, 'space_charge': False}
@@ -50,10 +53,11 @@ def build_parameters(num_particles=None, beam_energy=None, pen_materials=None,
         'LUM_MAT': lum_mat, 'LUM_MESH': lum_mesh, 'LUM_RESULTS': lum_results}
     return params
 
-def build_options(use_penelope_file=None, lum_run_from_sim=None,
-        lum_run_to_sim=None, purge_large_data=None, run_nth_sim=None):
+def build_options(use_penelope_file=None, run_lumerical=None, 
+        lum_run_from_sim=None, lum_run_to_sim=None, purge_large_data=None,
+        run_nth_sim=None):
      
-    args = (use_penelope_file, lum_run_from_sim, lum_run_to_sim, 
+    args = (use_penelope_file, run_lumerical, lum_run_from_sim, lum_run_to_sim,
             purge_large_data, run_nth_sim)
 
     # Error checking options
@@ -66,6 +70,7 @@ def build_options(use_penelope_file=None, lum_run_from_sim=None,
         return None
 
     options = {'USE_PENELOPE_FILE': use_penelope_file, 
+            'RUN_LUMERICAL': run_lumerical,
             'LUM_RUN_FROM_SIM': lum_run_from_sim,
             'LUM_RUN_TO_SIM': lum_run_to_sim,
             'PURGE_LARGE_DATA': purge_large_data, 
@@ -86,8 +91,9 @@ def default_parameters():
             )
 
 def default_options():
-    return build_options(use_penelope_file=False, lum_run_from_sim=0,
-            lum_run_to_sim=-1, purge_large_data=True, run_nth_sim=-1)
+    return build_options(use_penelope_file=False, run_lumerical=True,
+            lum_run_from_sim=0, lum_run_to_sim=-1, purge_large_data=True,
+            run_nth_sim=-1)
 
 
 DEFAULT_PARAMS = default_parameters()
@@ -251,7 +257,10 @@ def run_pipeline(params=DEFAULT_PARAMS, options=DEFAULT_OPTIONS, scripts=None):
         run_penelope(params['NUM_PARTICLES'], params['BEAM_ENERGY'],
                 params['PEN_MATERIALS'], params['GEOMETRY'])
 
-        for i in range(10):
+        # Writing results from longer sims takes longer
+        wait = int(10 + 10*log10(params['NUM_PARTICLES']))
+        logger.info("Allowing %s seconds for data file to be written", wait)
+        for i in range(wait):
             if os.path.isfile(DATA_FILE_PATH.split('/')[-1]):
                 logger.info("PENELOPE output file found")
                 break
@@ -268,10 +277,14 @@ def run_pipeline(params=DEFAULT_PARAMS, options=DEFAULT_OPTIONS, scripts=None):
         logger.debug("Dirlist: %s", os.listdir('.'))
         output_files = [f for f in os.listdir('.') if ".mat" in f]
         logger.debug("Detected .mat files: %s", output_files)
-        output_files.sort(key=lambda x:int(re.search(r'(\d+(?=.mat))', x).group(0)))
+        output_files.sort(
+                key=lambda x:int(re.search(r'(\d+(?=.mat))', x).group(0)))
     else:
         output_files = process_data(datafile=DATA_FILE_PATH, output_dir='./')
     logger.debug("output files discovered: '%s'", output_files)
+
+    if options['RUN_LUMERICAL'] == False:
+        return  # Skip running lumerical
 
     ## Options for running select simulations
 
