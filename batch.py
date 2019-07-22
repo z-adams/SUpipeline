@@ -76,7 +76,7 @@ def dianas_sweep():
                 params['NUM_PARTICLES'] = 100
                 params['BEAM_ENERGY'] = E
                 params['GEOMETRY'] = GEO
-                params['PEN_MATERIALS'] = MAT
+                params['PEN_MATERIALS'] = [MAT]
                 configurations.append(
                         {'name': "{0}_{1:d}keV_{2:d}um".format(MAT['name'],
                             int(E/1000), 
@@ -102,7 +102,7 @@ def main():
         os.chdir('../..')
 
 if __name__ == '__main__':
-    #main()
-    configs = dianas_sweep()
-    for config in configs:
-        print config['name']
+    main()
+    #configs = dianas_sweep()
+    #for config in configs:
+    #    print config['name']
