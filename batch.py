@@ -7,6 +7,8 @@ from pipeline import (
 import os
 from argparse import ArgumentParser
 import logging
+import threading
+import time
 
 ### Logger setup, ignore me ###
 arg_parser = ArgumentParser()
@@ -23,6 +25,10 @@ logger = logging.getLogger(os.path.basename(__file__))
 
 # Specify any scripts (located in batch root dir) to run
 SCRIPTS = []
+
+# Specify whether or not to use threading, and how many threads
+USE_THREADING = True
+NUM_THREADS = 24
 
 # Do-it-yourself batch config: write a function that generates a list of
 # configurations* to run through the pipeline
@@ -86,12 +92,7 @@ def dianas_sweep():
                          })
     return configurations
 
-def main():
-
-    configurations = dianas_sweep() # your generator function here
-    scripts = ["../../../{}".format(s) for s in SCRIPTS]
-
-    for config in configurations:
+def do_sim(config):
         logger.info("###################### Running pipeline config '%s' "\
                 "######################", config['name'])
         logger.debug("Producing directory '%s'", config['name'])
@@ -100,6 +101,46 @@ def main():
         logger.debug("CWD: %s", os.getcwd())
         run_pipeline(config['parameters'], config['options'], scripts=scripts)
         os.chdir('../..')
+
+class ThreadPool:
+    def __init__(self, num_threads):
+        self.capacity = num_threads
+        self.num_active = 0
+        self.threads = []
+
+    def dispatch(self, poll_wait=1, target=None, args=(), kwargs={}):
+        while True:
+            if self.num_active < self.capacity:
+                threads.append(threading.Thread(
+                    target=target, args=args, kwargs=kwargs))
+            else:
+                if poll_wait > 0:
+                    time.sleep(poll_wait)
+                poll_threads()
+
+    def poll_threads(self):
+        self.threads = [t for t in threads if t.is_alive() == True]
+        self.num_active = len(self.threads)
+
+    def join_all(self):
+        for t in self.threads:
+            t.join()
+
+
+def main():
+
+    configurations = dianas_sweep() # your generator function here
+    scripts = ["../../../{}".format(s) for s in SCRIPTS]
+
+    if USE_THREADING:
+        thread_pool = ThreadPool(NUM_THREADS)
+        for config in configurations:
+            thread_pool.dispatch(poll_wait=5, target=do_sim, args=(config))
+        thread_pool.join_all()
+
+    else:
+        for config in configurations:
+            do_sim(config)
 
 if __name__ == '__main__':
     main()
