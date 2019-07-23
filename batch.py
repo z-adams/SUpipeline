@@ -7,7 +7,7 @@ from pipeline import (
 import os
 from argparse import ArgumentParser
 import logging
-import threading
+import multiprocessing
 import time
 
 ### Logger setup, ignore me ###
@@ -79,7 +79,7 @@ def dianas_sweep():
             for GEO in GEOMETRIES:
                 logger.info("Generating for E:%s, GEO:%s, MAT:%s", E, GEO, MAT)
                 params = default_parameters()
-                params['NUM_PARTICLES'] = 100
+                params['NUM_PARTICLES'] = 1000
                 params['BEAM_ENERGY'] = E
                 params['GEOMETRY'] = GEO
                 params['PEN_MATERIALS'] = [MAT]
@@ -92,7 +92,7 @@ def dianas_sweep():
                          })
     return configurations
 
-def do_sim(config):
+def do_sim(config, scripts):
         logger.info("###################### Running pipeline config '%s' "\
                 "######################", config['name'])
         logger.debug("Producing directory '%s'", config['name'])
@@ -102,29 +102,36 @@ def do_sim(config):
         run_pipeline(config['parameters'], config['options'], scripts=scripts)
         os.chdir('../..')
 
-class ThreadPool:
-    def __init__(self, num_threads):
-        self.capacity = num_threads
+class MultiprocessingPool:
+    def __init__(self, num_processes):
+        self.capacity = num_processes
         self.num_active = 0
-        self.threads = []
+        self.processes = []
+        self.running_total = 0
 
-    def dispatch(self, poll_wait=1, target=None, args=(), kwargs={}):
+    def dispatch(self, poll_wait=1, tgt=None, arguments=()):
         while True:
             if self.num_active < self.capacity:
-                threads.append(threading.Thread(
-                    target=target, args=args, kwargs=kwargs))
+                logger.warn("Adding process %s, running total: %s", self.num_active, self.running_total)
+                new_child = multiprocessing.Process(target=tgt, args=arguments)
+                new_child.start()
+                self.processes.append(new_child)
+                self.num_active += 1
+                self.running_total += 1
+                return
             else:
+                logger.warn("Polling processes")
                 if poll_wait > 0:
                     time.sleep(poll_wait)
-                poll_threads()
+                self.poll_processes()
 
-    def poll_threads(self):
-        self.threads = [t for t in threads if t.is_alive() == True]
-        self.num_active = len(self.threads)
+    def poll_processes(self):
+        self.processes = [p for p in self.processes if p.is_alive() == True]
+        self.num_active = len(self.processes)
 
     def join_all(self):
-        for t in self.threads:
-            t.join()
+        for p in self.processes:
+            p.join()
 
 
 def main():
@@ -133,14 +140,14 @@ def main():
     scripts = ["../../../{}".format(s) for s in SCRIPTS]
 
     if USE_THREADING:
-        thread_pool = ThreadPool(NUM_THREADS)
+        pool = MultiprocessingPool(NUM_THREADS)
         for config in configurations:
-            thread_pool.dispatch(poll_wait=5, target=do_sim, args=(config))
-        thread_pool.join_all()
+            pool.dispatch(poll_wait=30, tgt=do_sim, arguments=(config,scripts,))
+        pool.join_all()
 
     else:
         for config in configurations:
-            do_sim(config)
+            do_sim(config, scripts)
 
 if __name__ == '__main__':
     main()
