@@ -349,6 +349,7 @@ if __name__ == '__main__':
     logger.info("Building local options") 
     LOCAL_OPTIONS = build_options(
             use_penelope_file=USE_PENELOPE_FILE,
+            run_lumerical=RUN_LUMERICAL,
             lum_run_from_sim=LUM_RUN_FROM_SIM,
             lum_run_to_sim=LUM_RUN_TO_SIM,
             purge_large_data=PURGE_LARGE_DATA,

@@ -13,14 +13,6 @@ from plot_both import plot_both
 ## deposited through the material by the electron, and writes a .mat matrix
 ## file for each electron shower on the material.
 
-## Terminology:
- # Event - a single scattering event of the particle in the material
- # Trajectory - the list of events associated with a single particle
- # Shower - the trajectories of a primary particle and all its secondaries
-
-# Events stored in a dict like so:
-#event = {"x": x, "y": y, "z": z, "E": E, "WGHT": W, "IBODY": B, "ICOL": C}
-
 logger = logging.getLogger(os.path.basename(__file__))
 
 def separate_collisions(trajectories):

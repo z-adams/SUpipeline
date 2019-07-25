@@ -1,18 +1,9 @@
+from trajectory import Trajectory
 import sys
 import logging
 import os
 
 logger = logging.getLogger(os.path.basename(__file__))
-
-class Trajectory:
-    """ Represents a single trajectory and stores its list of events"""
-    def __init__(self, TRAJ, KPAR, PARENT, ICOL, EXIT):
-        self.traj = TRAJ
-        self.kpar = KPAR
-        self.parent = PARENT
-        self.icol = ICOL
-        self.exit = EXIT
-        self.events = []
 
 def parse_traj(filename, trim=True):
     """ Splits a .dat file from pyPENELOPE into a list of trajectories

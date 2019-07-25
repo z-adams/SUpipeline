@@ -70,6 +70,19 @@ Parent_dir/
 
 ## Details
 
+#### Terminology
+
+I use the following terminology in my code:
+* Event -- a single step of the trajectory from pyPENELOPE; a collision
+* Trajectory -- a single trajectory (list of events) from pyPENELOPE; separated
+by headers bounded by `0000000000` and `1111111111` in `pe-trajectories.dat`.
+* Shower -- a collection of Trajectories associated with one primary particle
+
+I know the use of "Event" is potentially confusing given the particle physics
+tendency to call a whole shower from a collision an "event", but the meaning
+is a little clearer in the code overall. Just think of space-time events, i.e.
+(t, x, y, z).
+
 #### Arguments
 
 Right now there is only one command line argument, used to set the logging

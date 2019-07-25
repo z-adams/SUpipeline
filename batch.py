@@ -79,7 +79,7 @@ def dianas_sweep():
             for GEO in GEOMETRIES:
                 logger.info("Generating for E:%s, GEO:%s, MAT:%s", E, GEO, MAT)
                 params = default_parameters()
-                params['NUM_PARTICLES'] = 1000
+                params['NUM_PARTICLES'] = 10
                 params['BEAM_ENERGY'] = E
                 params['GEOMETRY'] = GEO
                 params['PEN_MATERIALS'] = [MAT]
@@ -126,6 +126,7 @@ class MultiprocessingPool:
                 self.poll_processes()
 
     def poll_processes(self):
+        to_join = [p for p in self.processes if not p.is_alive()]
         self.processes = [p for p in self.processes if p.is_alive() == True]
         self.num_active = len(self.processes)
 
