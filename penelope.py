@@ -19,7 +19,8 @@ import os
 logger = logging.getLogger(os.path.basename(__file__))
 
 def run_penelope(num_particles=10, beam_energy=350e3, 
-        materials=None, geometry=None, energy_parameters=None):
+        materials=None, geometry=None, energy_parameters=None,
+        secondaries=True):
     """ Calls the penelope API to perform a PENELOPE simulation of electrons
     incidents on the specified geometry.
     
@@ -41,8 +42,9 @@ def run_penelope(num_particles=10, beam_energy=350e3,
     returns nothing
     """
     logger.debug("Running PENELOPE with parameters: num_particles=%d, " \
-        "beam_energy=%e, materials=%s, geometry=%s, energy_parameters=%s", 
-        num_particles, beam_energy, materials, geometry, energy_parameters)
+        "beam_energy=%e, materials=%s, geometry=%s, energy_parameters=%s, " \
+        "secondaries=%s", num_particles, beam_energy, materials, geometry,
+        energy_parameters, secondaries)
 
     # material IDs are hidden from the user, they are instead referenced by name
     # IDs are internally assigned and the name <-> ID relationship is 
@@ -148,7 +150,7 @@ def run_penelope(num_particles=10, beam_energy=350e3,
 
 
     ### Simulation
-    sim = Simulation(randomnumberseeds=None, secondary_particles=True, 
+    sim = Simulation(randomnumberseeds=None, secondary_particles=secondaries, 
             trajectories=num_particles)
 
     ### Trajectories

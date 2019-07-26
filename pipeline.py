@@ -1,5 +1,7 @@
 from lumerical import run_detector_test
 from generation_rate import process_data
+from traj_parser import parse_traj
+from charge_density import compute_charge
 from penelope import run_penelope
 from argparse import ArgumentParser
 import re
@@ -15,14 +17,17 @@ from math import log10
 
 # OPTIONS
 USE_PENELOPE_FILE = False  # Use an existing pe-trajectories.dat file
-RUN_LUMERICAL = True  # Running of lumerical can be disabled
-LUM_RUN_FROM_SIM = 0  # start at the nth sim (0 == beginning)
-LUM_RUN_TO_SIM = -1  # -1 to run to the last sim, else end at the nth
+RUN_LUMERICAL = False  # Running of lumerical can be disabled
+WRITE_CHARGE_MAT = False  # Compute dense voxel matrix of charge generation
+RUN_MANUAL_CHARGE = True  # Run approximate charge simulation scripts
+RUN_FROM_SIM = 0  # start at the nth sim (0 == beginning)
+RUN_TO_SIM = -1  # -1 to run to the last sim, else end at the nth
 PURGE_LARGE_DATA = False  # Delete large files (.ldev, charge gen) after use
 RUN_NTH_SIM = -1 # If not less than zero, run only the nth lumerical sim
 
 # PARAMETERS
 NUM_PARTICLES = 100
+INCLUDE_SECONDARIES = False
 BEAM_ENERGY = 350e3
 PEN_MATERIALS = [
         {'name': 'CdTe', 'density': 5.85,
@@ -36,11 +41,12 @@ LUM_RESULTS = {'free_charge': False, 'space_charge': False}
 
 ##### You shouldn't need to touch anything below this line #####
 
-def build_parameters(num_particles=None, beam_energy=None, pen_materials=None,
-        geometry=None, lum_mat=None, lum_mesh=None, lum_results=None):
+def build_parameters(num_particles=None, include_secondaries=None,
+        beam_energy=None, pen_materials=None, geometry=None, lum_mat=None,
+        lum_mesh=None, lum_results=None):
 
-    args = (num_particles, beam_energy, pen_materials, geometry, lum_mat,
-            lum_mesh, lum_results)
+    args = (num_particles, include_secondaries, beam_energy, pen_materials,
+            geometry, lum_mat, lum_mesh, lum_results)
 
     # Error checking parameters
     if None in args:
@@ -48,16 +54,19 @@ def build_parameters(num_particles=None, beam_energy=None, pen_materials=None,
                 " missing args: %s", [e for e in args if e is None])
         return None
 
-    params = {'NUM_PARTICLES': num_particles, 'BEAM_ENERGY': beam_energy, 
-        'PEN_MATERIALS': pen_materials, 'GEOMETRY': geometry,
-        'LUM_MAT': lum_mat, 'LUM_MESH': lum_mesh, 'LUM_RESULTS': lum_results}
+    params = {'NUM_PARTICLES': num_particles,
+            'INCLUDE_SECONDARIES': include_secondaries,
+            'BEAM_ENERGY': beam_energy, 'PEN_MATERIALS': pen_materials,
+            'GEOMETRY': geometry, 'LUM_MAT': lum_mat, 'LUM_MESH': lum_mesh,
+            'LUM_RESULTS': lum_results}
     return params
 
-def build_options(use_penelope_file=None, run_lumerical=None, 
-        lum_run_from_sim=None, lum_run_to_sim=None, purge_large_data=None,
-        run_nth_sim=None):
+def build_options(use_penelope_file=None, run_lumerical=None,
+        write_charge_mat=None, run_manual_charge=None, run_from_sim=None,
+        run_to_sim=None, purge_large_data=None, run_nth_sim=None):
      
-    args = (use_penelope_file, run_lumerical, lum_run_from_sim, lum_run_to_sim,
+    args = (use_penelope_file, run_lumerical, write_charge_mat,
+            run_manual_charge, run_from_sim, run_to_sim,
             purge_large_data, run_nth_sim)
 
     # Error checking options
@@ -65,14 +74,16 @@ def build_options(use_penelope_file=None, run_lumerical=None,
         logger.error("Error building parameter dict from function arguments,"\
                 " missing args: %s", [e for e in args if e is None])
         return None
-    if lum_run_to_sim > 0 and lum_run_to_sim < lum_run_from_sim:
-        logger.critical("LUM_RUN_TO_SIM must be larger than LUM_RUN_FROM_SIM")
+    if run_to_sim > 0 and run_to_sim < run_from_sim:
+        logger.critical("RUN_TO_SIM must be larger than RUN_FROM_SIM")
         return None
 
     options = {'USE_PENELOPE_FILE': use_penelope_file, 
             'RUN_LUMERICAL': run_lumerical,
-            'LUM_RUN_FROM_SIM': lum_run_from_sim,
-            'LUM_RUN_TO_SIM': lum_run_to_sim,
+            'WRITE_CHARGE_MAT': write_charge_mat,
+            'RUN_MANUAL_CHARGE': run_manual_charge,
+            'RUN_FROM_SIM': run_from_sim,
+            'RUN_TO_SIM': run_to_sim,
             'PURGE_LARGE_DATA': purge_large_data, 
             'RUN_NTH_SIM': run_nth_sim}
     return options
@@ -82,6 +93,7 @@ def build_options(use_penelope_file=None, run_lumerical=None,
 def default_parameters():
     return build_parameters(num_particles=1,
             beam_energy=350e3,
+            include_secondaries=False,
             pen_materials=[{'name': 'CdTe', 'density': 5.85,
                 'elements': [('Cd', 0.5), ('Te', 0.5)]}],
             geometry={'type': 0, 'material': 'CdTe'},
@@ -91,9 +103,9 @@ def default_parameters():
             )
 
 def default_options():
-    return build_options(use_penelope_file=False, run_lumerical=True,
-            lum_run_from_sim=0, lum_run_to_sim=-1, purge_large_data=True,
-            run_nth_sim=-1)
+    return build_options(use_penelope_file=False, run_lumerical=False,
+            write_charge_mat=False, run_manual_charge=True, run_from_sim=0,
+            run_to_sim=-1, purge_large_data=True, run_nth_sim=-1)
 
 
 DEFAULT_PARAMS = default_parameters()
@@ -254,8 +266,11 @@ def run_pipeline(params=DEFAULT_PARAMS, options=DEFAULT_OPTIONS, scripts=None):
     if not STRUCTURE_EXISTS and not USE_PENELOPE_FILE:
         os.chdir("pyPENELOPE")
         logger.info("Running pyPENELOPE...")
-        run_penelope(params['NUM_PARTICLES'], params['BEAM_ENERGY'],
-                params['PEN_MATERIALS'], params['GEOMETRY'])
+        run_penelope(num_particles=params['NUM_PARTICLES'],
+                beam_energy=params['BEAM_ENERGY'],
+                materials=params['PEN_MATERIALS'],
+                geometry=params['GEOMETRY'],
+                secondaries=params['INCLUDE_SECONDARIES'])
 
         # Writing results from longer sims takes longer
         wait = int(10 + 10*log10(params['NUM_PARTICLES']))
@@ -271,67 +286,95 @@ def run_pipeline(params=DEFAULT_PARAMS, options=DEFAULT_OPTIONS, scripts=None):
     else:
         logger.info("Skipping pyPENELOPE simulation, using found data file")
 
-    # Process scattering data, create .mat files
-    os.chdir("results")
-    if STRUCTURE_EXISTS:
-        logger.debug("Dirlist: %s", os.listdir('.'))
-        output_files = [f for f in os.listdir('.') if ".mat" in f]
-        logger.debug("Detected .mat files: %s", output_files)
-        output_files.sort(
-                key=lambda x:int(re.search(r'(\d+(?=.mat))', x).group(0)))
-    else:
-        output_files = process_data(datafile=DATA_FILE_PATH, output_dir='./')
-    logger.debug("output files discovered: '%s'", output_files)
-
-    if options['RUN_LUMERICAL'] == False:
-        return  # Skip running lumerical
-
-    ## Options for running select simulations
-
-    # Running one specific simulation
-    if (options['RUN_NTH_SIM'] >= 0):
-        i = find_file_number_in_list(options['RUN_NTH_SIM'], output_files)
-        logger.info("Running lumerical on single file '%s'", output_files[i])
-        configure_and_run_lumerical(output_files[i], params, options, SCRIPTS)
-    else:
-    # Running a range of simulations
-        from_sim = options['LUM_RUN_FROM_SIM']
-        to_sim = options['LUM_RUN_TO_SIM']
-        if from_sim < 1 and to_sim < 0:
-            message = "Running lumerical on all files"
+    # Write charge generation matrices
+    if options['WRITE_CHARGE_MAT']:
+        # Process scattering data, create .mat files
+        os.chdir("results")
+        if STRUCTURE_EXISTS:
+            logger.debug("Dirlist: %s", os.listdir('.'))
+            output_files = [f for f in os.listdir('.') if ".mat" in f]
+            logger.debug("Detected .mat files: %s", output_files)
+            output_files.sort(
+                    key=lambda x:int(re.search(r'(\d+(?=.mat))', x).group(0)))
         else:
-            from_index = find_file_number_in_list(from_sim, output_files)
-            msg_from_sim = output_files[from_index]
+            output_files = process_data(datafile=DATA_FILE_PATH, output_dir='./')
+        logger.debug("output files discovered: '%s'", output_files)
+
+    # Manually compute charge transport
+    if options['RUN_MANUAL_CHARGE']:
+        os.chdir("results")
+        output = ["### Final Charge Densities ###", 
+                str(options), str(params), 
+                "##############################",
+                "Traj #:\t\tDensity:"]
+        if params['INCLUDE_SECONDARIES']:
+            logger.warning("Manual charge does not support secondary " \
+                    "particles, weird behavior will result")
+        trajectories = parse_traj(DATA_FILE_PATH)
+        if options['RUN_NTH_SIM'] >= 0:
+            start = options['RUN_NTH_SIM']
+            end = start + 1
+        else:
+            from_sim = options['RUN_FROM_SIM']
+            to_sim = options['RUN_TO_SIM']
             if to_sim < 0:
-                msg_to_sim = output_files[-1]
+                to_sim = len(trajectories)
+
+        for i in range(from_sim, to_sim):
+            density = compute_charge(trajectories[i])
+            output.append("Traj {0:d}:\t\t{1:.9e}".format(i, density))
+
+        with open("n.txt", "w") as data_output:
+            for line in output:
+                data_output.write("{}\n".format(line))
+
+    # Run lumerical on charge generation matrices
+    if options['RUN_LUMERICAL'] == True:
+        ## Options for running select simulations
+        # Running one specific simulation
+        if (options['RUN_NTH_SIM'] >= 0):
+            i = find_file_number_in_list(options['RUN_NTH_SIM'], output_files)
+            logger.info("Running lumerical on single file '%s'", output_files[i])
+            configure_and_run_lumerical(output_files[i], params, options, SCRIPTS)
+        else:
+        # Running a range of simulations
+            from_sim = options['RUN_FROM_SIM']
+            to_sim = options['RUN_TO_SIM']
+            if from_sim < 1 and to_sim < 0:
+                message = "Running lumerical on all files"
             else:
-                to_index = find_file_number_in_list(to_sim, output_files)
-                msg_to_sim = output_files[to_index]
-            message = "Running lumerical on trajectories {} through {}".format(
-                    msg_from_sim, msg_to_sim)
-            logger.info(message)
-            pass
+                from_index = find_file_number_in_list(from_sim, output_files)
+                msg_from_sim = output_files[from_index]
+                if to_sim < 0:
+                    msg_to_sim = output_files[-1]
+                else:
+                    to_index = find_file_number_in_list(to_sim, output_files)
+                    msg_to_sim = output_files[to_index]
+                message = "Running lumerical on trajectories {} " \
+                        "through {}".format(msg_from_sim, msg_to_sim)
+                logger.info(message)
 
-        # Invoke Lumerical, call .lsf script to get optical modulation
-        for charge_file in output_files:
+            # Invoke Lumerical, call .lsf script to get optical modulation
+            for charge_file in output_files:
 
-            # Since we can start at any file, we need to know the index of the
-            # file itself, not the index of the file in output_files
-            file_index = int(re.search(r'(\d+(?=.mat))', charge_file).group(0))
+                # Since we can start at any file, we need to know the index of the
+                # file itself, not the index of the file in output_files
+                file_index = int(re.search(r'(\d+(?=.mat))',
+                    charge_file).group(0))
 
-            # Skip until starting point
-            if file_index < from_sim:
-                continue
-            elif file_index == from_sim:
-                logger.info("Beginning from sim #%d", file_index)
+                # Skip until starting point
+                if file_index < from_sim:
+                    continue
+                elif file_index == from_sim:
+                    logger.info("Beginning from sim #%d", file_index)
 
-            # Break if ending point reached
-            if to_sim > 0 and file_index > to_sim:
-                logger.info("Hit maximum simulations: quitting")
-                break
+                # Break if ending point reached
+                if to_sim > 0 and file_index > to_sim:
+                    logger.info("Hit maximum simulations: quitting")
+                    break
 
-            # Run simulation
-            configure_and_run_lumerical(charge_file, params, options, SCRIPTS)
+                # Run simulation
+                configure_and_run_lumerical(charge_file, params, options, SCRIPTS)
 
 if __name__ == '__main__':
     # If this script is main, we can assume user wants to use local parameters
@@ -339,6 +382,7 @@ if __name__ == '__main__':
     logger.info("Building local parameters")
     LOCAL_PARAMS = build_parameters(
             num_particles=NUM_PARTICLES,
+            include_secondaries=INCLUDE_SECONDARIES,
             beam_energy=BEAM_ENERGY,
             pen_materials=PEN_MATERIALS,
             geometry=GEOMETRY,
@@ -350,8 +394,10 @@ if __name__ == '__main__':
     LOCAL_OPTIONS = build_options(
             use_penelope_file=USE_PENELOPE_FILE,
             run_lumerical=RUN_LUMERICAL,
-            lum_run_from_sim=LUM_RUN_FROM_SIM,
-            lum_run_to_sim=LUM_RUN_TO_SIM,
+            write_charge_mat=WRITE_CHARGE_MAT,
+            run_manual_charge=RUN_MANUAL_CHARGE,
+            run_from_sim=RUN_FROM_SIM,
+            run_to_sim=RUN_TO_SIM,
             purge_large_data=PURGE_LARGE_DATA,
             run_nth_sim=RUN_NTH_SIM
             )
