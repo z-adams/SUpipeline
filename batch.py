@@ -57,19 +57,73 @@ def dianas_sweep():
                  {'name': 'YAG',
                   'density': 4.65,
                   'elements': [('Y', 0.449), ('Al', 0.227), ('O', 0.324)]},
+                 {'name': 'InSb',
+                  'density': 4.65,
+                  'elements': [('In', 0.485), ('Sb', 0.515)]},
+                 {'name': 'Ge',
+                  'density': 5.323,
+                  'elements': [('Ge', 1.0)]},
+                 {'name': 'PbBiGa',
+                  'density': 7.91,
+                  'elements': [('Bi', 0.43), ('Ga', .144), ('Pb', 0.426)]},
+                 {'name': 'GaAs',
+                  'density': 5.32,
+                  'elements': [('As', 0.518), ('Ga', 0.482)]},
+                 {'name': 'UO2',
+                  'density': 10.97,
+                  'elements': [('O', 0.12), ('U', 0.88)]},
+                 {'name': 'TlBr',
+                  'density': 7.56,
+                  'elements': [('Br', 0.281), ('Tl', 0.719)]},
+                 {'name': 'CdSe',
+                  'density': 5.82,
+                  'elements': [('Cd', 0.587), ('Se', 0.413)]},
+                 {'name': 'CdZnTe',
+                  'density': 5.81,
+                  'elements': [('Cd', 0.368), ('Te', 0.418), ('Zn', 0.214)]},
+                 {'name': 'ZnSe',
+                  'density': 5.27,
+                  'elements': [('Se', 0.547), ('Zn', 0.453)]},
+                 {'name': 'ZnTe',
+                  'density': 5.633,
+                  'elements': [('Te', 0.661), ('Zn', 0.339)]},
+                 {'name': 'CdS',
+                  'density': 4.821,
+                  'elements': [('Cd', 0.778), ('S', 0.222)]},
+                 {'name': 'ZnS',
+                  'density': 4.08,
+                  'elements': [('S', 0.329), ('Zn', 0.671)]},
+                 {'name': 'ZnO',
+                  'density': 5.61,
+                  'elements': [('O', 0.197), ('Zn', 0.803)]},
+                 #{'name': 'MAPbBr3',
+                 # 'density': 4.83,
+                 # 'elements': []},
+                 {'name': 'Si',
+                  'density': 2.33,
+                  'elements': [('Si', 1.0)]},
+                 {'name': 'BaTiO3',
+                  'density': 6.02,
+                  'elements': [('Ba', 0.589), ('O', 0.206), ('Ti', 0.205)]},
                  {'name': 'BSO',
                   'density': 2.47968,
                   'elements': [('Bi', 0.752), ('O', 0.172), ('Si', 0.076)]},
                  {'name': 'BGO',
                   'density': 4.13281,
                   'elements': [('Bi', 0.671), ('Ge', 0.175), ('O', 0.154)]}
+                 #{'name': 'LYSO',
+                 # 'density': 7.1,
+                 # 'elements': []},
+                 #{'name': 'LuAG',
+                 # 'density': 6.7,
+                 # 'elements': []},
                  ]
-    BEAM_ENERGIES = [350e3, 400e3, 450e3]
+    BEAM_ENERGIES = [100e3, 350e3, 400e3, 450e3, 480e3, 750e3, 
+            2000e3, 3000e3, 4000e3]
     THICKNESSES = [0.2, 0.4, 1.0, 1.5, 2.0]
 
     configurations = []
     options = default_options()
-    options['RUN_LUMERICAL'] = False
     for MAT in MATERIALS:
         GEOMETRIES = [
                 {'type': 1, 'layers': [('vacuum', -1), (MAT['name'], thickness)]}
@@ -79,7 +133,7 @@ def dianas_sweep():
             for GEO in GEOMETRIES:
                 logger.info("Generating for E:%s, GEO:%s, MAT:%s", E, GEO, MAT)
                 params = default_parameters()
-                params['NUM_PARTICLES'] = 10
+                params['NUM_PARTICLES'] = 1
                 params['BEAM_ENERGY'] = E
                 params['GEOMETRY'] = GEO
                 params['PEN_MATERIALS'] = [MAT]

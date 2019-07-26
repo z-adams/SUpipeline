@@ -322,7 +322,7 @@ def run_pipeline(params=DEFAULT_PARAMS, options=DEFAULT_OPTIONS, scripts=None):
 
         for i in range(from_sim, to_sim):
             density = compute_charge(trajectories[i])
-            output.append("Traj {0:d}:\t\t{1:.9e}".format(i, density))
+            output.append("{0:d}:\t\t{1:.9e}".format(i, density))
 
         with open("n.txt", "w") as data_output:
             for line in output:
