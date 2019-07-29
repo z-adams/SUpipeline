@@ -1,9 +1,20 @@
 import numpy as np
+from copy import deepcopy
 
 max_N = 100
 eh_gen = 4.43  # 3 * bandgap energy
 
-def compute_charge(trajectory):
+class Sphere:
+    def __init__(self, x, y, z, r):
+        self.x = x
+        self.y = y
+        self.z = z
+        self.r = r
+
+    def SDF(self, x, y, z):
+        return np.sqrt((x - self.x)**2 + (y - self.y)**2 + (z - self.z)**2) - r
+
+def compute_charge(trajectory, volumes = None):
     """Produces the final charge density from a given trajectory"""
     charge_densities = []
     x = np.array([evt['x'] for evt in trajectory.events])
@@ -33,6 +44,9 @@ def compute_charge(trajectory):
     for i in range(num_points):
         time_elapsed[i] = np.sum(t[i:])
         radius[i] = np.sqrt(6 * 0.25 * time_elapsed[i])
+        if volumes is not None:
+            volumes.append(Sphere(x[i], y[i], z[i], 0))
+            volumes[i].r = np.sqrt(6 * 0.25 * time_elapsed[i])
 
     ## Calculate summed trajectory and volume
     sum_num = np.zeros(num_points)
