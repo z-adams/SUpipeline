@@ -56,7 +56,7 @@ def march_density(trajectory): #, direction):
     volumes = []
     compute_charge(trajectory, volumes)
 
-    rmax = np.max([vol.r for vol in volumes])
+    rmax = np.max([vol.r for vol in volumes]) * 1e4
 
     xmin = np.min([vol.x for vol in volumes]) - rmax
     xmax = np.max([vol.x for vol in volumes]) + rmax
@@ -80,14 +80,14 @@ def march_density(trajectory): #, direction):
     # units are in cm
     # Z proj
     direction = Vec3(0, 0, -1)
-    resolution = 1e-3
+    resolution = 1e-4
 
     x_steps = np.int_((xmax - xmin) / resolution)
     y_steps = np.int_((ymax - ymin) / resolution)
     matrix = np.zeros((x_steps, y_steps,))
 
-    xmid = (xmax - xmin)/2
-    ymid = (ymax - ymin)/2
+    xmid = (xmax + xmin)/2
+    ymid = (ymax + ymin)/2
 
     march_dist = zmax - zmin
 
@@ -121,7 +121,7 @@ def march_density(trajectory): #, direction):
     args4 = (start_4, stop_4, mat_start4, matrix, volumes, zmax, direction, march_dist, resolution)
 
     threads = []
-    threads.append(threading.Thread(target=march_subsection, args=args1))
+    #threads.append(threading.Thread(target=march_subsection, args=args1))
     threads.append(threading.Thread(target=march_subsection, args=args2))
     threads.append(threading.Thread(target=march_subsection, args=args3))
     threads.append(threading.Thread(target=march_subsection, args=args4))
@@ -129,6 +129,8 @@ def march_density(trajectory): #, direction):
     t_begin = time.time()
     for t in threads:
         t.start()
+
+    march_subsection(*args1)
 
     for t in threads:
         t.join()
@@ -144,6 +146,7 @@ def march_subsection(uv_mins, uv_maxs, out_uv, out_matrix, volumes, origin_w, di
     u_out = out_uv[0]
     v_out = out_uv[1]
     while u < uv_maxs[0]:
+        v_out = 0
         while v < uv_maxs[1]:
             origin = Vec3(u, v, origin_w)
             out_matrix[u_out, v_out] = march(origin, direction, volumes, max_depth, resolution)
