@@ -56,16 +56,19 @@ def march_density(trajectory): #, direction):
     volumes = []
     compute_charge(trajectory, volumes)
 
-    rmax = np.max([vol.r for vol in volumes]) * 1e4
+    rmax = np.max([vol.r for vol in volumes])
 
-    xmin = np.min([vol.x for vol in volumes]) - rmax
-    xmax = np.max([vol.x for vol in volumes]) + rmax
+    xmin = np.min([vol.x for vol in volumes])# - rmax
+    xmax = np.max([vol.x for vol in volumes])# + rmax
 
-    ymin = np.min([vol.y for vol in volumes]) - rmax
-    ymax = np.max([vol.y for vol in volumes]) + rmax
+    ymin = np.min([vol.y for vol in volumes])# - rmax
+    ymax = np.max([vol.y for vol in volumes])# + rmax
 
-    zmin = np.min([vol.z for vol in volumes]) - rmax
-    zmax = np.max([vol.z for vol in volumes]) + rmax
+    zmin = np.min([vol.z for vol in volumes])# - rmax
+    zmax = np.max([vol.z for vol in volumes])# + rmax
+
+    for vol in volumes:
+        vol.r *= 1e4
 
     #if direction == directions.X:
     #    pass
@@ -120,20 +123,25 @@ def march_density(trajectory): #, direction):
     mat_start4 = (x_steps/2, 0,)
     args4 = (start_4, stop_4, mat_start4, matrix, volumes, zmax, direction, march_dist, resolution)
 
-    threads = []
+    #threads = []
     #threads.append(threading.Thread(target=march_subsection, args=args1))
-    threads.append(threading.Thread(target=march_subsection, args=args2))
-    threads.append(threading.Thread(target=march_subsection, args=args3))
-    threads.append(threading.Thread(target=march_subsection, args=args4))
+    #threads.append(threading.Thread(target=march_subsection, args=args2))
+    #threads.append(threading.Thread(target=march_subsection, args=args3))
+    #threads.append(threading.Thread(target=march_subsection, args=args4))
 
     t_begin = time.time()
-    for t in threads:
-        t.start()
+    #for t in threads:
+    #    t.start()
 
-    march_subsection(*args1)
+    main_start = (xmin, ymin,)
+    main_stop = (xmax, ymax,)
+    mat_start = (0, 0,)
+    main_args = (main_start, main_stop, mat_start, matrix, volumes, zmax, direction, march_dist, resolution)
 
-    for t in threads:
-        t.join()
+    march_subsection(*main_args)
+
+    #for t in threads:
+    #    t.join()
     t_elapsed = time.time() - t_begin
 
     print "Finished marching after {} seconds".format(t_elapsed)
@@ -144,9 +152,9 @@ def march_subsection(uv_mins, uv_maxs, out_uv, out_matrix, volumes, origin_w, di
     u = uv_mins[0]
     v = uv_mins[1]
     u_out = out_uv[0]
-    v_out = out_uv[1]
     while u < uv_maxs[0]:
-        v_out = 0
+        v_out = out_uv[1]
+        v = uv_mins[1]
         while v < uv_maxs[1]:
             origin = Vec3(u, v, origin_w)
             out_matrix[u_out, v_out] = march(origin, direction, volumes, max_depth, resolution)
