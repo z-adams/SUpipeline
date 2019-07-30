@@ -81,8 +81,8 @@ def march_density(trajectory): #, direction):
     direction = Vec3(0, 0, -1)
     resolution = 1e-4
 
-    x_steps = (xmax - xmin) / resolution
-    y_steps = (ymax - ymin) / resolution
+    x_steps = np.int_((xmax - xmin) / resolution)
+    y_steps = np.int_((ymax - ymin) / resolution)
     matrix = np.zeros((x_steps, y_steps,))
 
     xmid = (xmax - xmin)/2
