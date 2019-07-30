@@ -2,6 +2,7 @@ from charge_density import Sphere, compute_charge
 from traj_parser import parse_traj
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.io as sio
 import threading
 import time
 
@@ -79,7 +80,7 @@ def march_density(trajectory): #, direction):
     # units are in cm
     # Z proj
     direction = Vec3(0, 0, -1)
-    resolution = 1e-4
+    resolution = 1e-3
 
     x_steps = np.int_((xmax - xmin) / resolution)
     y_steps = np.int_((ymax - ymin) / resolution)
@@ -102,22 +103,22 @@ def march_density(trajectory): #, direction):
     start_1 = (xmid, ymid,)
     stop_1 = (xmax, ymax,)
     mat_start1 = (x_steps/2, y_steps/2,)
-    args1 = (start_1, stop_1, mat_start1, matrix, zmax, direction, march_dist, resolution)
+    args1 = (start_1, stop_1, mat_start1, matrix, volumes, zmax, direction, march_dist, resolution)
 
     start_2 = (xmin, ymid,)
     stop_2 = (xmid, ymax,)
     mat_start2 = (0, y_steps/2,)
-    args2 = (start_2, stop_2, mat_start2, matrix, zmax, direction, march_dist, resolution)
+    args2 = (start_2, stop_2, mat_start2, matrix, volumes, zmax, direction, march_dist, resolution)
 
     start_3 = (xmin, ymin,)
     stop_3 = (xmid, ymid,)
     mat_start3 = (0, 0,)
-    args3 = (start_3, stop_3, mat_start3, matrix, zmax, direction, march_dist, resolution)
+    args3 = (start_3, stop_3, mat_start3, matrix, volumes, zmax, direction, march_dist, resolution)
 
     start_4 = (xmid, ymin,)
     stop_4 = (xmax, ymid,)
     mat_start4 = (x_steps/2, 0,)
-    args4 = (start_4, stop_4, mat_start4, matrix, zmax, direction, march_dist, resolution)
+    args4 = (start_4, stop_4, mat_start4, matrix, volumes, zmax, direction, march_dist, resolution)
 
     threads = []
     threads.append(threading.Thread(target=march_subsection, args=args1))
@@ -134,22 +135,10 @@ def march_density(trajectory): #, direction):
     t_elapsed = time.time() - t_begin
 
     print "Finished marching after {} seconds".format(t_elapsed)
-
-    #x = xmin
-    #y = ymin
-    #x_ind = 0
-    #y_ind = 0
-    #while y < ymax:
-    #    matrix.append([])
-    #    while x < xmax:
-    #        origin = Vec3(x, y, zmax)
-    #        matrix[y_ind].append(
-    #            march(origin, direction, volumes, abs(zmax - zmin), resolution))
-    #        x_ind += 1
-    #    y_ind += 1
+ 
     return np.array(matrix)
 
-def march_subsection(uv_mins, uv_maxs, out_uv, out_matrix, origin_w, direction, max_depth, resolution):
+def march_subsection(uv_mins, uv_maxs, out_uv, out_matrix, volumes, origin_w, direction, max_depth, resolution):
     u = uv_mins[0]
     v = uv_mins[1]
     u_out = out_uv[0]
@@ -158,11 +147,18 @@ def march_subsection(uv_mins, uv_maxs, out_uv, out_matrix, origin_w, direction, 
         while v < uv_maxs[1]:
             origin = Vec3(u, v, origin_w)
             out_matrix[u_out, v_out] = march(origin, direction, volumes, max_depth, resolution)
+            v += resolution
             v_out += 1
+            if not v_out < out_matrix.shape[1]:
+                break
+        u += resolution
         u_out += 1
+        if not u_out < out_matrix.shape[0]:
+            break
 
 if __name__ == '__main__':
     trajs = parse_traj("pe-trajectories.dat")
     mat = march_density(trajs[0])
+    sio.savemat("data.mat", {'data': mat})
     plt.imshow(mat)
     plt.show()
