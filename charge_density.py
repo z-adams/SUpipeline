@@ -12,7 +12,8 @@ class Sphere:
         self.r = r
 
     def SDF(self, x, y, z):
-        return np.sqrt((x - self.x)**2 + (y - self.y)**2 + (z - self.z)**2) - r
+        return np.sqrt(
+                (x - self.x)**2 + (y - self.y)**2 + (z - self.z)**2) - self.r
 
 def compute_charge(trajectory, volumes = None):
     """Produces the final charge density from a given trajectory"""
