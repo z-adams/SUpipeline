@@ -75,6 +75,7 @@ int march_init(struct MarchVolume *mv, struct Cloud *volumes, int n_vols,
 {
     mv->volumes = volumes;
     mv->resolution = resolution;
+    mv->n_vols = n_vols;
 
     float r_max = 0.0f;
 
@@ -111,6 +112,9 @@ int march_init(struct MarchVolume *mv, struct Cloud *volumes, int n_vols,
         case XY:
             vol_width = mv->x_max - mv->x_min;
             vol_height = mv->y_max - mv->y_min;
+            mv->proj_direction = (struct Vec3){0.0f, 0.0f, -1.0f};
+            mv->w_img_plane = mv->z_max;
+            mv->w_depth_bound = mv->z_min;
             break;
         case YZ:
             break;
@@ -199,13 +203,16 @@ void* march_subvolume(void *args)
     struct MarchVolume *mv = region->mv;
     struct Ray cast;
     cast.direction = mv->proj_direction;
-    cast.origin.z = mv->w_img_plane; // Generalize
+    // Generalize:
+    cast.origin.z = mv->w_img_plane;
+    float u_min = mv->x_min;
+    float v_min = mv->y_min;
     for (int u = region->u0; u < region->u1; u++)
     {
         for (int v = region->v0; v < region->v1; v++)
         {
-            cast.origin.x = u*mv->u_cell_width;
-            cast.origin.y = u*mv->v_cell_height;
+            cast.origin.x = u_min + u*mv->u_cell_width;
+            cast.origin.y = v_min + v*mv->v_cell_height;
 
             mv->matrix[u + v * mv->matrix_u] = march_ray(cast, mv);
         }
@@ -217,7 +224,8 @@ float march_ray(struct Ray cast, struct MarchVolume *mv)
 {
     float value = 0.0f;
     float depth = 0.0f;
-    while (depth < mv->w_depth_bound)
+    float max_depth = fabs(mv->w_img_plane - mv->w_depth_bound);
+    while (depth < max_depth)
     {
         depth += mv->resolution;
         value += test_volumes(mv, get_ray_point(cast, depth));
@@ -228,9 +236,12 @@ float march_ray(struct Ray cast, struct MarchVolume *mv)
 float test_volumes(struct MarchVolume *mv, struct Vec3 point)
 {
     float sum = 0.0f;
+    float sdf = 0.0f;
     for (int i = 0; i < mv->n_vols; i++)
     {
-        if (sphere_SDF(mv->volumes[i].volume, point) < 0.0f)
+        sdf = sphere_SDF(mv->volumes[i].volume, point);
+        //if (sphere_SDF(mv->volumes[i].volume, point) < 0.0f)
+        if (sdf < 0.0f)
         {
             sum += mv->volumes[i].density;
         }

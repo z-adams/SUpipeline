@@ -6,7 +6,7 @@
 #define YZ 1
 #define ZX 2
 
-#define USE_THREADING 1
+#define USE_THREADING 0
 #define NUM_THREADS 4
 
 struct Vec3  /* total: 12 bytes */
