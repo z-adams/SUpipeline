@@ -240,7 +240,6 @@ float test_volumes(struct MarchVolume *mv, struct Vec3 point)
     for (int i = 0; i < mv->n_vols; i++)
     {
         sdf = sphere_SDF(mv->volumes[i].volume, point);
-        //if (sphere_SDF(mv->volumes[i].volume, point) < 0.0f)
         if (sdf < 0.0f)
         {
             sum += mv->volumes[i].density;
