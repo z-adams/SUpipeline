@@ -172,8 +172,8 @@ void run_march(struct MarchVolume *mv)
         {
             struct Subregion *region = &chunks[u + cols*v];
             region->mv = mv;
-            region->u0 = u;
-            region->v1 = v;
+            region->u0 = u * (mv->matrix_u/cols);
+            region->v0 = v * (mv->matrix_v/rows);
             if (u == cols - 1)
                 region->u1 = mv->matrix_u;
             else
