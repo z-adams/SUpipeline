@@ -36,7 +36,7 @@ def run_raymarcher(volumes, resolution, projection):
 
     for i, vol in enumerate(volumes):
         proc.stdin.write(struct.pack(cloud_fmt,
-            vol.x, vol.y, vol.z, vol.r, 1))
+            vol.x, vol.y, vol.z, vol.r, vol.density()))
 
     # Finished data transfer, begin run
     start = time.time()

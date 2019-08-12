@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "march.h"
+#include "drude_refract.h"
 
 #define die_perror(msg)     \
 do {                        \
@@ -69,9 +70,12 @@ int load_stdin(int n_clouds, float resolution, const char* projection)
         {
             die_perror("Charge data read failed");
         }
-        volumes[i].volume.r *= 1e3f;
+        //volumes[i].volume.r *= 1e3f;
     }
-    march_init(mv, volumes, n_clouds, resolution, PROJ);
+    /*march_init(mv, volumes, n_clouds, resolution, PROJ,
+            drude_ref, 2*sizeof(float));  REF INDEX */
+    march_init(mv, volumes, n_clouds, resolution, PROJ,
+            test_volumes, sizeof(float)); // CHARGE DENSITY
     return 0;
 }
 
@@ -94,7 +98,7 @@ void retrieve(void)
         for (int v = 0; v < mv->matrix_v; v++)
         {
             int retval = write(STDOUT_FILENO,
-                    (void*)&mv->matrix[u + v*mv->matrix_u], sizeof(float));
+                    mv->matrix + ((u + v*mv->matrix_u) * sizeof(float)), sizeof(float));
 
             if (retval < 0)
                 die_perror("Failure writing matrix data");

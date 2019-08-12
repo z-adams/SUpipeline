@@ -56,26 +56,32 @@ struct MarchVolume* march_create(void)
 {
     struct MarchVolume *mv = malloc(sizeof(struct MarchVolume));
     memset(mv, 0xCC, sizeof(struct MarchVolume));
-    *mv = (struct MarchVolume) {(struct Vec3) {0.0f, 0.0f, 0.0f}, 0, NULL,
-        NULL, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0, 0, 0.0f, 0.0f,
-        0.0f, 0.0f};
+    *mv = (struct MarchVolume) {(struct Vec3) {0.0f, 0.0f, 0.0f}, 0, NULL, 0,
+        NULL, NULL, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0, 0, 0.0f,
+        0.0f, 0.0f, 0.0f};
     return mv;
 }
 
-void march_destroy(struct MarchVolume *mv)
+int march_destroy(struct MarchVolume *mv)
 {
-    free(mv->volumes);
-    free(mv->matrix);
+    if (!mv)
+        return -1;
+    if (mv->volumes)
+        free(mv->volumes);
+    if (mv->matrix)
+        free(mv->matrix);
     free(mv);
+    return 0;
 }
 
 
 int march_init(struct MarchVolume *mv, struct Cloud *volumes, int n_vols,
-        float resolution, int PROJECTION)
+        float resolution, int PROJECTION, Evaluator eval, int mat_cell_bytes)
 {
     mv->volumes = volumes;
     mv->resolution = resolution;
     mv->n_vols = n_vols;
+    mv->evaluate = eval;
 
     float r_max = 0.0f;
 
@@ -128,14 +134,16 @@ int march_init(struct MarchVolume *mv, struct Cloud *volumes, int n_vols,
 
     if (mv->matrix)
         free(mv->matrix);
-    mv->matrix = malloc(sizeof(float) * mv->matrix_u * mv->matrix_v);
+    mv->matrix = malloc(mat_cell_bytes * mv->matrix_u * mv->matrix_v);
     if (!mv->matrix)
         return -1;
     return 0;
 }
 
-void run_march(struct MarchVolume *mv)
+int run_march(struct MarchVolume *mv)
 {
+    if (!mv || !mv->volumes || !mv->matrix)
+        return -1;
     if (!USE_THREADING)
     {
         // Run in main thread
@@ -146,7 +154,7 @@ void run_march(struct MarchVolume *mv)
         full.u1 = mv->matrix_u;
         full.v1 = mv->matrix_v;
         march_subvolume((void*)&full);
-        return;
+        return 0;
     }
 
     // Require NUM_THREADS to be a multiple of 2 for easy workload division
@@ -164,6 +172,7 @@ void run_march(struct MarchVolume *mv)
     }
     int rows = NUM_THREADS / cols;
 
+    fprintf(stderr, "Rows: %d, Cols: %d", rows, cols);
     // Compute the corners of the subregions and launch threads
     struct Subregion chunks[NUM_THREADS];
     for (int v = 0; v < rows; v++)
@@ -194,10 +203,10 @@ void run_march(struct MarchVolume *mv)
         int result_code = pthread_join(pool[i], NULL);
         assert(!result_code);
     }
+    return 0;
 }
 
 void* march_subvolume(void *args)
-    //struct MarchVolume *mv, int u0, int v0, int u1, int v1)
 {
     struct Subregion *region = (struct Subregion*)args;
     struct MarchVolume *mv = region->mv;
@@ -214,37 +223,34 @@ void* march_subvolume(void *args)
             cast.origin.x = u_min + u*mv->u_cell_width;
             cast.origin.y = v_min + v*mv->v_cell_height;
 
-            mv->matrix[u + v * mv->matrix_u] = march_ray(cast, mv);
+            march_ray(cast, mv, u, v);
         }
     }
     return NULL;
 }
 
-float march_ray(struct Ray cast, struct MarchVolume *mv)
+void march_ray(struct Ray cast, struct MarchVolume *mv, int u, int v)
 {
-    float value = 0.0f;
     float depth = 0.0f;
     float max_depth = fabs(mv->w_img_plane - mv->w_depth_bound);
     while (depth < max_depth)
     {
         depth += mv->resolution;
-        value += test_volumes(mv, get_ray_point(cast, depth));
+        mv->evaluate(mv, get_ray_point(cast, depth), u, v);
     }
-    return value;
 }
 
-float test_volumes(struct MarchVolume *mv, struct Vec3 point)
+void test_volumes(struct MarchVolume *mv, struct Vec3 point, int u, int v)
 {
-    float sum = 0.0f;
     float sdf = 0.0f;
     for (int i = 0; i < mv->n_vols; i++)
     {
         sdf = sphere_SDF(mv->volumes[i].volume, point);
         if (sdf < 0.0f)
         {
-            sum += mv->volumes[i].density;
+            ((float*)mv->matrix)[u + v * mv->matrix_u]
+                += mv->volumes[i].density;
         }
     }
-    return sum;
 }
 

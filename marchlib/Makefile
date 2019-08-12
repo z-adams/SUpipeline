@@ -1,5 +1,5 @@
 # Target library
-objs := march.o
+objs := march.o drude_refract.o
 programs := pymarch.x
 
 CC = gcc
