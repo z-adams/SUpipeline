@@ -1,4 +1,4 @@
-from lumerical import run_detector_test
+from lumerical import run_detector_test, init_lumerical
 from generation_rate import process_data
 from traj_parser import parse_traj
 from charge_density import compute_charge
@@ -17,16 +17,16 @@ from math import log10
 
 # OPTIONS
 USE_PENELOPE_FILE = False  # Use an existing pe-trajectories.dat file
-RUN_LUMERICAL = False  # Running of lumerical can be disabled
-WRITE_CHARGE_MAT = False  # Compute dense voxel matrix of charge generation
-RUN_MANUAL_CHARGE = True  # Run approximate charge simulation scripts
+RUN_LUMERICAL = True  # Running of lumerical can be disabled
+WRITE_CHARGE_MAT = True  # Compute dense voxel matrix of charge generation
+RUN_MANUAL_CHARGE = False  # Run approximate charge simulation scripts
 RUN_FROM_SIM = 0  # start at the nth sim (0 == beginning)
 RUN_TO_SIM = -1  # -1 to run to the last sim, else end at the nth
 PURGE_LARGE_DATA = False  # Delete large files (.ldev, charge gen) after use
 RUN_NTH_SIM = -1 # If not less than zero, run only the nth lumerical sim
 
 # PARAMETERS
-NUM_PARTICLES = 100
+NUM_PARTICLES = 3
 INCLUDE_SECONDARIES = False
 BEAM_ENERGY = 350e3
 PEN_MATERIALS = [
@@ -151,34 +151,37 @@ def find_file_number_in_list(number, file_list):
                 "for %d in %s", number, file_list)
     return indices[0]
 
-def configure_and_run_lumerical(charge_file, params, options, scripts=None):
-    # Configure simulation workspace
-    filename = re.split(r'[/\\]', charge_file)  # strip preceeding path
-    filename = re.sub(r'[\.]\w+', '', filename[-1])  # strip file extension
-    if os.path.isdir(filename):
-        logger.warn("Directory '%s' already exists, skipping sim", filename)
-        return
-    logger.debug("creating directory for file: %s", filename)
-    os.mkdir(filename)
-    shutil.move(charge_file, "./{}/{}.mat".format(filename, filename))
-    os.chdir(filename)
-    out_file = "{}.ldev".format(filename)
+def configure_and_run_lumerical(lumerical_targets, params, options,
+        scripts=None):
+    for charge_file in lumerical_targets:
+        # Configure simulation workspace
+        filename = re.split(r'[/\\]', charge_file)  # strip preceeding path
+        filename = re.sub(r'[\.]\w+', '', filename[-1])  # strip file extension
+        if os.path.isdir(filename):
+            logger.warn("Directory '%s' already exists, skipping sim", filename)
+            return
+        logger.debug("creating directory for file: %s", filename)
+        os.mkdir(filename)
+        shutil.move(charge_file, "./{}/{}.mat".format(filename, filename))
+        os.chdir(filename)
+        out_file = "{}.ldev".format(filename)
 
-    logger.debug("Running lumerical on %s", charge_file)
-    run_detector_test(charge_file,
-            material=params['LUM_MAT'],
-            mesh_options=params['LUM_MESH'],
-            results=params['LUM_RESULTS'],
-            output_filename=out_file, 
-            scripts=scripts
-            )
+        logger.debug("Running lumerical on %s", charge_file)
+        run_detector_test(charge_file,
+                working_dir=os.getcwd(),
+                material=params['LUM_MAT'],
+                mesh_options=params['LUM_MESH'],
+                results=params['LUM_RESULTS'],
+                output_filename=out_file, 
+                scripts=scripts
+                )
 
-    # Clean up directory
-    if PURGE_LARGE_DATA:
-        logger.info("Purging large data files")
-        os.remove("{}.mat".format(filename))
-        os.remove("{}.ldev".format(filename))
-    os.chdir("..")
+        # Clean up directory
+        if PURGE_LARGE_DATA:
+            logger.info("Purging large data files")
+            os.remove("{}.mat".format(filename))
+            os.remove("{}.ldev".format(filename))
+        os.chdir("..")
 
 # Directory structure:
 # Root
@@ -354,6 +357,7 @@ def run_pipeline(params=DEFAULT_PARAMS, options=DEFAULT_OPTIONS, scripts=None):
                         "through {}".format(msg_from_sim, msg_to_sim)
                 logger.info(message)
 
+            lumerical_targets = []
             # Invoke Lumerical, call .lsf script to get optical modulation
             for charge_file in output_files:
 
@@ -373,8 +377,12 @@ def run_pipeline(params=DEFAULT_PARAMS, options=DEFAULT_OPTIONS, scripts=None):
                     logger.info("Hit maximum simulations: quitting")
                     break
 
-                # Run simulation
-                configure_and_run_lumerical(charge_file, params, options, SCRIPTS)
+                lumerical_targets.append(charge_file)
+
+            init_lumerical()
+            # Run simulation
+            configure_and_run_lumerical(lumerical_targets, params, options,
+                    SCRIPTS)
 
 if __name__ == '__main__':
     # If this script is main, we can assume user wants to use local parameters

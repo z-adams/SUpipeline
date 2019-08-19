@@ -18,6 +18,8 @@ elif plat == "Darwin":  # mac
 SIM_TIME = 60 * 5  # Simulations take about 5 minutes
 SIMULATION_TIMEOUT = 10 #2 * SIM_TIME  # Give up to 2x typical time before timeout
 
+device = None
+
 def start_sim_timeout(device, event, was_interrupted):
     interrupted = event.wait(timeout=SIMULATION_TIMEOUT)
     if not interrupted:
@@ -25,12 +27,17 @@ def start_sim_timeout(device, event, was_interrupted):
         device.close()
         was_interrupted = False
 
+def init_lumerical(hide=False):
+    global device
+    device = lumapi.DEVICE(hide=hide)
+    logger.debug("session launched")
+
 # PyAPI essentially exposes the Lumerical script as python functions.
 # May end up just using a lsf if this is unnecessary
 
-def run_detector_test(charge_data_filename, output_filename=None, 
-        material=None, mesh_options=None, results=None, scripts=None, 
-        pause=False):
+def run_detector_test(charge_data_filename, working_dir=None,
+        output_filename=None, material=None, mesh_options=None,
+        results=None, scripts=None, pause=False):
     """ Perform a test run of a (currently fixed to) CdTe volume given
     the specified charge generation volume data. For settings formats, see 
     respective locations in the code below
@@ -46,8 +53,11 @@ def run_detector_test(charge_data_filename, output_filename=None,
 
     returns nothing
     """
-    device = lumapi.DEVICE() #hide=True)
-    logger.debug("session launched")
+    global device
+    #device = lumapi.DEVICE() #hide=True)
+    #logger.debug("session launched")
+    device.newproject()
+    device.cd(working_dir)
 
     device.addchargesolver()
 
@@ -222,4 +232,5 @@ def run_detector_test(charge_data_filename, output_filename=None,
 if __name__ == '__main__':
     logger.info("current location: %s", os.getcwd())
     datafile = raw_input("Where is the charge data .mat?: ")
+    init_lumerical()
     run_detector_test(datafile)
