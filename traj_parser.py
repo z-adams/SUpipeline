@@ -5,6 +5,28 @@ import os
 
 logger = logging.getLogger(os.path.basename(__file__))
 
+def separate_collisions(trajectories):
+    """ Separates the list of trajectories by parent primary particle
+    
+    args:
+    trajectories -- the list of all trajectories in the simulation
+    
+    returns a list of showers, i.e. a list of lists that each contain
+    the primary and secondary trajectories resulting from each impact
+    """
+    showers = []  # list of lists of trajectories associated with a parent
+    shower_index = -1  # will be incremented on first trajectory
+    current_primary = 0
+    for traj in trajectories:
+        if traj.parent == 0:
+            # new primary particle
+            current_primary = traj.traj
+            shower_index += 1
+            showers.append([])  # create space for new shower
+        # Assuming all child showers follow their primary
+        showers[shower_index].append(traj)
+    return showers
+
 def parse_traj(filename, trim=True):
     """ Splits a .dat file from pyPENELOPE into a list of trajectories
     Assumes that lines with comments will contain only comments.
@@ -54,7 +76,7 @@ def parse_traj(filename, trim=True):
             continue
 
         split = line.split()
-        # Parse strings into appropriate values
+        # Parse strings into values of appropriate type
         split = [float(j) for j in split[0:5]] + [int(k) for k in split[5:]]
 
         # Removes extraneous datapoints based on IBODY value

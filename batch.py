@@ -26,10 +26,6 @@ logger = logging.getLogger(os.path.basename(__file__))
 # Specify any scripts (located in batch root dir) to run
 SCRIPTS = []
 
-# Specify whether or not to use threading, and how many threads
-USE_THREADING = True
-NUM_THREADS = 24
-
 # Do-it-yourself batch config: write a function that generates a list of
 # configurations* to run through the pipeline
 # *1 configuration: {'name': name, 'parameters': params, 'options': options}
@@ -53,7 +49,7 @@ def energy_sweep():
 def dianas_sweep():
     MATERIALS = [{'name': 'CdTe', 
                   'density': 5.85,
-                  'elements': [('Cd', 0.5), ('Te', 0.5)]},
+                  'elements': [('Cd', 0.468), ('Te', 0.532)]},
                  {'name': 'YAG',
                   'density': 4.65,
                   'elements': [('Y', 0.449), ('Al', 0.227), ('O', 0.324)]},
@@ -154,7 +150,7 @@ def do_sim(config, scripts):
         os.chdir(config['name'])
         logger.debug("CWD: %s", os.getcwd())
         run_pipeline(config['parameters'], config['options'], scripts=scripts)
-        os.chdir('../..')
+        os.chdir('..')
 
 class MultiprocessingPool:
     def __init__(self, num_processes):
@@ -189,12 +185,11 @@ class MultiprocessingPool:
             p.join()
 
 
-def main():
-
-    configurations = dianas_sweep() # your generator function here
+def run_batch(config_generator, USE_MULTIPROCESSING=True, NUM_THREADS=4):
+    configurations = config_generator()
     scripts = ["../../../{}".format(s) for s in SCRIPTS]
 
-    if USE_THREADING:
+    if USE_MULTIPROCESSING:
         pool = MultiprocessingPool(NUM_THREADS)
         for config in configurations:
             pool.dispatch(poll_wait=30, tgt=do_sim, arguments=(config,scripts,))
@@ -205,7 +200,5 @@ def main():
             do_sim(config, scripts)
 
 if __name__ == '__main__':
-    main()
-    #configs = dianas_sweep()
-    #for config in configs:
-    #    print config['name']
+    run_batch(dianas_sweep()) # your generator function here
+

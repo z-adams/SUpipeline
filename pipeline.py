@@ -26,12 +26,13 @@ PURGE_LARGE_DATA = False  # Delete large files (.ldev, charge gen) after use
 RUN_NTH_SIM = -1 # If not less than zero, run only the nth lumerical sim
 
 # PARAMETERS
-NUM_PARTICLES = 3
+NUM_PARTICLES = 100
 INCLUDE_SECONDARIES = False
 BEAM_ENERGY = 350e3
+PARTICLE = 1  # 1-electron 2-photon 3-positron
 PEN_MATERIALS = [
         {'name': 'CdTe', 'density': 5.85,
-    'elements': [('Cd', 0.5), ('Te', 0.5)]}
+    'elements': [('Cd', 0.468), ('Te', 0.532)]}
     ]
 #GEOMETRY = {'type': 1, 'layers': [('vacuum', -1), ('CdTe', 0.2)]}
 GEOMETRY = {'type': 0, 'material': 'CdTe'}
@@ -40,24 +41,44 @@ LUM_MESH = {'min': 1e-6, 'max': 1e-5}
 LUM_RESULTS = {'free_charge': False, 'space_charge': False}
 
 ##### You shouldn't need to touch anything below this line #####
+# Logging command line arg (--log=...)
+# There's another (actual) 'main' at the bottom of the file
+if __name__ == '__main__':
+    arg_parser = ArgumentParser()
+    arg_parser.add_argument("--log", 
+            help="Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
+    loglevel = arg_parser.parse_args().log
+    if loglevel is not None:
+        numeric_level= getattr(logging, loglevel.upper(), None)
+        if not isinstance(numeric_level, int):
+            raise ValueError('Invalid log level')
+        logging.basicConfig(level=numeric_level)
+logger = logging.getLogger(os.path.basename(__file__))
 
 def build_parameters(num_particles=None, include_secondaries=None,
-        beam_energy=None, pen_materials=None, geometry=None, lum_mat=None,
-        lum_mesh=None, lum_results=None):
+        beam_energy=None, particle=None, pen_materials=None, geometry=None,
+        energy_params=None, lum_mat=None, lum_mesh=None, lum_results=None):
 
-    args = (num_particles, include_secondaries, beam_energy, pen_materials,
-            geometry, lum_mat, lum_mesh, lum_results)
+    kwargs = dict(locals())  # capture named args in kwargs
 
     # Error checking parameters
-    if None in args:
+    missing = []
+    for key in kwargs:
+        if kwargs[key] is None:
+            if key == "energy_params":
+                continue
+            missing.append(key)
+    if len(missing) > 0:
         logger.error("Error building parameter dict from function arguments,"\
-                " missing args: %s", [e for e in args if e is None])
+                " missing args: %s", missing)
         return None
 
     params = {'NUM_PARTICLES': num_particles,
             'INCLUDE_SECONDARIES': include_secondaries,
-            'BEAM_ENERGY': beam_energy, 'PEN_MATERIALS': pen_materials,
-            'GEOMETRY': geometry, 'LUM_MAT': lum_mat, 'LUM_MESH': lum_mesh,
+            'BEAM_ENERGY': beam_energy, 'PARTICLE': particle, 
+            'PEN_MATERIALS': pen_materials, 'GEOMETRY': geometry,
+            'ENERGY_PARAMS': energy_params,
+            'LUM_MAT': lum_mat, 'LUM_MESH': lum_mesh,
             'LUM_RESULTS': lum_results}
     return params
 
@@ -93,10 +114,12 @@ def build_options(use_penelope_file=None, run_lumerical=None,
 def default_parameters():
     return build_parameters(num_particles=1,
             beam_energy=350e3,
+            particle=1,
             include_secondaries=False,
             pen_materials=[{'name': 'CdTe', 'density': 5.85,
                 'elements': [('Cd', 0.5), ('Te', 0.5)]}],
             geometry={'type': 0, 'material': 'CdTe'},
+            energy_params=None,
             lum_mat="CdTe (Cadmium Telluride)",
             lum_mesh={'min': 1e-6, 'max': 1e-5},
             lum_results={'free_charge': False, 'space_charge': False}
@@ -112,20 +135,6 @@ DEFAULT_PARAMS = default_parameters()
 DEFAULT_OPTIONS = default_options()
 
 DATA_FILE_PATH = '../pyPENELOPE/pe-trajectories.dat'
-
-# Logging command line arg (--log=...)
-# There's another (actual) 'main' at the bottom of the file
-if __name__ == '__main__':
-    arg_parser = ArgumentParser()
-    arg_parser.add_argument("--log", 
-            help="Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
-    loglevel = arg_parser.parse_args().log
-    if loglevel is not None:
-        numeric_level= getattr(logging, loglevel.upper(), None)
-        if not isinstance(numeric_level, int):
-            raise ValueError('Invalid log level')
-        logging.basicConfig(level=numeric_level)
-logger = logging.getLogger(os.path.basename(__file__))
 
 # Can be useful for debugging
 def pause():
@@ -205,9 +214,9 @@ def configure_and_run_lumerical(lumerical_targets, params, options,
 
 # TODO list
 # more materials, configurations in pyPENELOPE  CHECK
-# charge density (generation_rate.py)
+# charge density (generation_rate.py)  CHECK
 # lumerical settings? (mesh [CHECK], convergence, transience?)
-# config file reading??
+# config file reading??  CHECK (batch.py)
 # multithreading?!??
 # ?!??!??
 
@@ -271,8 +280,10 @@ def run_pipeline(params=DEFAULT_PARAMS, options=DEFAULT_OPTIONS, scripts=None):
         logger.info("Running pyPENELOPE...")
         run_penelope(num_particles=params['NUM_PARTICLES'],
                 beam_energy=params['BEAM_ENERGY'],
+                particle=params['PARTICLE'],
                 materials=params['PEN_MATERIALS'],
                 geometry=params['GEOMETRY'],
+                energy_parameters=params['ENERGY_PARAMS'],
                 secondaries=params['INCLUDE_SECONDARIES'])
 
         # Writing results from longer sims takes longer

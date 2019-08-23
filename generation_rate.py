@@ -2,7 +2,7 @@ import scipy.io as sio
 import os
 import logging
 import numpy as np
-from traj_parser import *
+from traj_parser import separate_collisions, parse_traj
 from process_impact import process_impact
 from plot_dat import plot_dat
 from plot_traj import plot_traj
@@ -14,28 +14,6 @@ from plot_both import plot_both
 ## file for each electron shower on the material.
 
 logger = logging.getLogger(os.path.basename(__file__))
-
-def separate_collisions(trajectories):
-    """ Separates the list of trajectories by parent primary particle
-    
-    args:
-    trajectories -- the list of all trajectories in the simulation
-    
-    returns a list of showers, i.e. a list of lists that each contain
-    the primary and secondary trajectories resulting from each impact
-    """
-    showers = []  # list of lists of trajectories associated with a parent
-    shower_index = -1  # will be incremented on first trajectory
-    current_primary = 0
-    for traj in trajectories:
-        if traj.parent == 0:
-            # new primary particle
-            current_primary = traj.traj
-            shower_index += 1
-            showers.append([])  # create space for new shower
-        # Assuming all child showers follow their primary
-        showers[shower_index].append(traj)
-    return showers
 
 def write_charge_gen_mat(x, y, z, G, filepath=None):
     """ Write a charge generation matrix to a .mat file

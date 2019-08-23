@@ -4,11 +4,9 @@ import sys
 import numpy as np
 import logging
 
-SUPIPELINE_LOCATION = "/home/zander/Desktop/SU/SUpipeline/"
-sys.path.append(SUPIPELINE_LOCATION)
-
 from batch import run_batch
 from pipeline import default_options, default_parameters
+from traj_parser import parse_traj, separate_collisions
 
 logger = logging.getLogger(os.path.basename(__file__))
 
@@ -47,8 +45,9 @@ def cascade_tracks():
         for E in BEAM_ENERGIES:
             logger.info("Generating for E:%s, MAT:%s", E, MAT)
             params = default_parameters()
-            params['NUM_PARTICLES'] = 1000
-            params['INCLUDE_SECONDARIES'] = False
+            params['NUM_PARTICLES'] = 10
+            params['PARTICLE'] = 2  # photon
+            params['INCLUDE_SECONDARIES'] = True
             params['BEAM_ENERGY'] = E
             params['GEOMETRY'] = GEO
             params['PEN_MATERIALS'] = [MAT]
@@ -86,25 +85,16 @@ def build_line_format(columns):
             line_format += "\t"
     return line_format
 
-def compute_times():
-    output = []
-    configs = cascade_tracks()
-    run_batch(cascade_tracks)
-    folders = os.listdir('.')
-    for folder in folders:
-        os.chdir("{}/pyPENELOPE".format(folder))
-        trajectories = parse_traj("pe-trajectories.dat")
-        cascade_t = []
-        for traj in trajectories:
-            cascade_t.append(cascade_time(traj))
-        output.append({'name': folder, 'data': cascade_t})
-        os.chdir('../..')
-    with open("output.txt", 'w+') as f:
-        num_rows = configs[0]['NUM_PARTICLES']
-        num_columns = len(configs)
-
+def write_column_data_to_file(columns, filename):
+    """ Writes a list of lists to a file as columns
+        Expects a square list of dictionaries containing:
+        {'title': xxx, 'data': [list]}
+    """
+    with open(filename, 'w+') as f:
+        num_columns = len(columns)
+        num_rows = len(columns[0]['data'])
         # Write column headers
-        for i, elem in enumerate(output):
+        for i, elem in enumerate(columns):
             f.write(elem['name'])
             if i < num_columns - 1:
                 f.write("\t")
@@ -112,17 +102,48 @@ def compute_times():
                 f.write("\n")
         
         for i in range(num_rows):
-            for c, elem in enumerate(output):
-                f.write(elem['data'][i])
-                if c < num_colums - 1:
+            for c, elem in enumerate(columns):
+                f.write(str(elem['data'][i]))
+                if c < num_columns - 1:
                     f.write("\t")
                 else:
                     f.write("\n")
 
-        #for item in output:
-        #    f.write("{0}\t{1}\n", item[0], item[1])
 
+def compute_times():
+    time_output = []
+    depths_of_absorption = []
+    configs = cascade_tracks()
+    run_batch(cascade_tracks)
+    folders = os.listdir('.')
+    #for folder in folders:
+    for config in configs:
+        folder = config['name']
+        os.chdir("{}/pyPENELOPE".format(folder))
+        trajectories = parse_traj("pe-trajectories.dat")
+        showers = separate_collisions(trajectories)
 
+        cascade_maxs = []
+        absorption_depths = []
+        for shower in showers:
+            tmp_times = []
+            tmp_depth = -1
+            for traj in shower:
+                tmp_times.append(cascade_time(traj))
+                if traj.kpar == 2:
+                    try:
+                        tmp_depth = next(
+                            evt['z'] for evt in traj.events if evt['ICOL'] == 3)
+                    except:
+                        tmp_depth = -1
+            cascade_maxs.append(max(tmp_times))
+            absorption_depths.append(tmp_depth)
+        time_output.append({'name': folder, 'data': cascade_maxs})  #TODO HACK
+        depths_of_absorption.append({'name': folder, 'data': absorption_depths})
+        os.chdir('../../')
+
+    write_column_data_to_file(time_output, "time_output.txt")
+    write_column_data_to_file(depths_of_absorption, "depths.txt")
 if __name__ == '__main__':
     compute_times()
 

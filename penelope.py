@@ -18,7 +18,7 @@ import os
 
 logger = logging.getLogger(os.path.basename(__file__))
 
-def run_penelope(num_particles=10, beam_energy=350e3, 
+def run_penelope(num_particles=10, beam_energy=350e3, particle=1,
         materials=None, geometry=None, energy_parameters=None,
         secondaries=True):
     """ Calls the penelope API to perform a PENELOPE simulation of electrons
@@ -41,10 +41,18 @@ def run_penelope(num_particles=10, beam_energy=350e3,
 
     returns nothing
     """
+    if particle == 1:
+        particle_type = "electron"
+    elif particle == 2:
+        particle_type = "photon"
+    elif particle == 3:
+        particle_type = "positron"
+    else:
+        logger.error("Invalid particle index '%d'", particle)
     logger.debug("Running PENELOPE with parameters: num_particles=%d, " \
-        "beam_energy=%e, materials=%s, geometry=%s, energy_parameters=%s, " \
-        "secondaries=%s", num_particles, beam_energy, materials, geometry,
-        energy_parameters, secondaries)
+        "beam_energy=%e, particle=%s, materials=%s, geometry=%s, "\
+        "energy_parameters=%s, secondaries=%s", num_particles, beam_energy,
+        particle_type, materials, geometry, energy_parameters, secondaries)
 
     # material IDs are hidden from the user, they are instead referenced by name
     # IDs are internally assigned and the name <-> ID relationship is 
@@ -56,7 +64,7 @@ def run_penelope(num_particles=10, beam_energy=350e3,
         return mat_id_pairs[name.lower()]
 
     ### Microscope ("source")
-    src = Source(particle=ELECTRON, beam_energy=beam_energy)
+    src = Source(particle=particle, beam_energy=beam_energy)
 
     ### Materials
 
@@ -67,20 +75,32 @@ def run_penelope(num_particles=10, beam_energy=350e3,
     # material = {
     #   'name': 'AbCd', 
     #   'density': density,
-    #   'elements': [('Ab', fraction,), ('Cd', fraction,)...]
+    #   'elements': [('Ab', mass_fraction,), ('Cd', mass_fraction,)...]
     #   }
 
     # Energy Parameters: (equivalent to "use default simulation parameters")
+    # TODO: implement automatic params for photons
     if energy_parameters is None:
-        energy_parameters = {
-                'absorption_energy_electron': beam_energy * 0.01,
-                'absorption_energy_photon': beam_energy * 0.001,
-                'absorption_energy_positron': beam_energy * 0.01,
-                'elastic_scattering_parameter_c1': 0.2,
-                'elastic_scattering_parameter_c2': 0.2,
-                'cutoff_energyloss_inelasticcollisions': beam_energy * 0.01,
-                'cutoff_energyloss_bremsstrahlungemission': beam_energy * 0.001 
-                }
+        if beam_energy * 0.001 < 50:
+            energy_parameters = {
+                    'absorption_energy_electron': 50.0,
+                    'absorption_energy_photon': 50.0,
+                    'absorption_energy_positron': 50.0,
+                    'elastic_scattering_parameter_c1': 0.2,
+                    'elastic_scattering_parameter_c2': 0.2,
+                    'cutoff_energyloss_inelasticcollisions': 50.0,
+                    'cutoff_energyloss_bremsstrahlungemission': 50.0 
+                    }
+        else:
+            energy_parameters = {
+                    'absorption_energy_electron': beam_energy * 0.01,
+                    'absorption_energy_photon': beam_energy * 0.001,
+                    'absorption_energy_positron': beam_energy * 0.01,
+                    'elastic_scattering_parameter_c1': 0.2,
+                    'elastic_scattering_parameter_c2': 0.2,
+                    'cutoff_energyloss_inelasticcollisions': beam_energy * 0.01,
+                    'cutoff_energyloss_bremsstrahlungemission': beam_energy * 0.001 
+                    }
     params = SimulationParameters(**energy_parameters)
 
     # Default setup (CdTe substrate):
@@ -88,7 +108,7 @@ def run_penelope(num_particles=10, beam_energy=350e3,
         logger.info("Auto-configuring material and geometry")
         materials = [
                 {'name': 'CdTe', 'density': 5.85, 
-                    'elements': [('Cd', 0.5), ('Te', 0.5)]}
+                    'elements': [('Cd', 0.468), ('Te', 0.532)]}
                 ]
         geometry = {'type': 0, 'material': 'CdTe'}
 
