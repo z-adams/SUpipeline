@@ -30,9 +30,13 @@ def run_raymarcher(volumes, resolution, projection):
 
     n_clouds = len(volumes)
 
-    args = [X_PATH, "{0:d}".format(n_clouds), "{0:f}".format(resolution)]
+    #args = [X_PATH, "{0:d}".format(n_clouds), "{0:f}".format(resolution)]
 
-    proc = Popen(args, stdin=PIPE, stdout=PIPE)
+    proc = Popen([X_PATH], stdin=PIPE, stdout=PIPE)
+
+    proc.stdin.write(struct.pack("@i", n_clouds))
+    proc.stdin.write(struct.pack("@f", resolution))
+    proc.stdin.write(struct.pack("@2s", "XY"))
 
     for i, vol in enumerate(volumes):
         proc.stdin.write(struct.pack(cloud_fmt,

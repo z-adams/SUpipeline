@@ -186,11 +186,11 @@ int run_march(struct MarchVolume *mv)
             if (u == cols - 1)
                 region->u1 = mv->matrix_u;
             else
-                region->u1 = u + mv->matrix_u / cols;
+                region->u1 = region->u0 + mv->matrix_u / cols;
             if (v == rows - 1)
                 region->v1 = mv->matrix_v;
             else
-                region->v1 = v + mv->matrix_v / rows;
+                region->v1 = region->v0 + mv->matrix_v / rows;
             int result_code = pthread_create(&pool[u + cols*v], NULL,
                     march_subvolume, (void*)region);
             assert(!result_code);
