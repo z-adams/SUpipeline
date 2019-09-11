@@ -16,7 +16,7 @@ from math import log10
 # penelope.py and lumerical.py files
 
 # OPTIONS
-USE_PENELOPE_FILE = False  # Use an existing pe-trajectories.dat file
+USE_PENELOPE_FILE = True  # Use an existing pe-trajectories.dat file
 RUN_LUMERICAL = True  # Running of lumerical can be disabled
 WRITE_CHARGE_MAT = True  # Compute dense voxel matrix of charge generation
 RUN_MANUAL_CHARGE = False  # Run approximate charge simulation scripts
@@ -26,7 +26,7 @@ PURGE_LARGE_DATA = False  # Delete large files (.ldev, charge gen) after use
 RUN_NTH_SIM = -1 # If not less than zero, run only the nth lumerical sim
 
 # PARAMETERS
-NUM_PARTICLES = 100
+NUM_PARTICLES = 1
 INCLUDE_SECONDARIES = False
 BEAM_ENERGY = 350e3
 PARTICLE = 1  # 1-electron 2-photon 3-positron
@@ -275,7 +275,7 @@ def run_pipeline(params=DEFAULT_PARAMS, options=DEFAULT_OPTIONS, scripts=None):
     logger.info("Found SCRIPTS: %s", SCRIPTS)
 
     # Invoke pyPENELOPE
-    if not STRUCTURE_EXISTS and not USE_PENELOPE_FILE:
+    if not STRUCTURE_EXISTS and not options['USE_PENELOPE_FILE']:
         os.chdir("pyPENELOPE")
         logger.info("Running pyPENELOPE...")
         run_penelope(num_particles=params['NUM_PARTICLES'],
@@ -403,6 +403,7 @@ if __name__ == '__main__':
             num_particles=NUM_PARTICLES,
             include_secondaries=INCLUDE_SECONDARIES,
             beam_energy=BEAM_ENERGY,
+            particle=PARTICLE,
             pen_materials=PEN_MATERIALS,
             geometry=GEOMETRY,
             lum_mat=LUM_MAT,

@@ -13,8 +13,18 @@ logger = logging.getLogger(os.path.basename(__file__))
 #fp, pathname, description = imp.find_module(SUPIPELINE_LOCATION + "batch")
 #batch = imp.load_module("batch", fp, pathname, description)
 
+# at 589.29nm
+refractive_indices = {
+        'Diamond': 2.417,   # wikipedia
+        'Ce:YAG': 1.82,     # https://www.crytur.cz/materials/yagce/ 
+        'PbBiGa': 2.24,     # Bo Zhou - Judd-Ofelt analysis
+        'CdS': 2.53,        # wikipedia
+        'CdSe': 2.5,        # wikipedia
+        'CdTe': 2.95,       # refractiveindex.info, 860nm
+        }
+
 def cascade_tracks():
-    BEAM_ENERGIES = [1e3, 10e3, 100e3]
+    BEAM_ENERGIES = [1e3, 5e3, 10e3, 15e3, 20e3, 30e3, 40e3, 50e3, 75e3, 100e3]
     MATERIALS = [{'name': 'Diamond',
                   'density': 3.51,
                   'elements': [('C', 1.0,)]},
@@ -58,19 +68,23 @@ def cascade_tracks():
                      })
     return configurations
 
-def cascade_time(trajectory):
+def cascade_time(trajectory, refr_index):
     x = np.array([evt['x'] for evt in trajectory.events])
     y = np.array([evt['y'] for evt in trajectory.events])
     z = np.array([evt['z'] for evt in trajectory.events])
     E = np.array([evt['E'] for evt in trajectory.events])
-    delta_E = E[0:-1] - E[1:]
     
     x2 = (x[0:-1] - x[1:])**2
     y2 = (y[0:-1] - y[1:])**2
     z2 = (z[0:-1] - z[1:])**2
 
     delta_X = np.sqrt(x2 + y2 + z2)
-    v = 3e10 * np.sqrt((E[0:-1] + 511e3)**2 - 511e3**2) / (511e3 + E[0:-1])
+    if trajectory.kpar == 1 or trajectory.kpar == 3:
+        delta_E = E[0:-1] - E[1:]
+        v = 3e10 * np.sqrt((E[0:-1] + 511e3)**2 - 511e3**2) / (511e3 + E[0:-1])
+    elif trajectory.kpar == 2:
+        return 0  # Temporary: ignore all contribution from photons
+        #v = 3e10 / refr_index
     delta_t = delta_X / v
 
     return np.sum(delta_t)
@@ -111,10 +125,12 @@ def write_column_data_to_file(columns, filename):
 
 
 def compute_times():
+    global refractive_indices
+
     time_output = []
     depths_of_absorption = []
     configs = cascade_tracks()
-    run_batch(cascade_tracks)
+    run_batch(cascade_tracks, USE_MULTIPROCESSING=False)
     folders = os.listdir('.')
     #for folder in folders:
     for config in configs:
@@ -125,18 +141,26 @@ def compute_times():
 
         cascade_maxs = []
         absorption_depths = []
+        # For each shower (trajs. grouped by primary)
         for shower in showers:
-            tmp_times = []
+            traj_times = []
             tmp_depth = -1
+            # For each particle in the shower
             for traj in shower:
-                tmp_times.append(cascade_time(traj))
+                # Collect the lifetime of the track
+                traj_times.append(cascade_time(traj,
+                    refractive_indices[config['name'].split('_')[0]]))
+                # And if the particle is a photon, capture the depth at which
+                # it is absorbed
                 if traj.kpar == 2:
                     try:
                         tmp_depth = next(
                             evt['z'] for evt in traj.events if evt['ICOL'] == 3)
                     except:
                         tmp_depth = -1
-            cascade_maxs.append(max(tmp_times))
+            # Then, capture the longest particle track as the cascade time
+            cascade_maxs.append(max(traj_times))
+            # And save the interaction depth of the photon, if any
             absorption_depths.append(tmp_depth)
         time_output.append({'name': folder, 'data': cascade_maxs})  #TODO HACK
         depths_of_absorption.append({'name': folder, 'data': absorption_depths})
