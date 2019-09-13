@@ -4,9 +4,9 @@ import logging
 import numpy as np
 from traj_parser import separate_collisions, parse_traj
 from process_impact import process_impact
-from plot_dat import plot_dat
-from plot_traj import plot_traj
-from plot_both import plot_both
+#from plot_dat import plot_dat
+#from plot_traj import plot_traj
+#from plot_both import plot_both
 
 ## This file calls a parser to process a pyPENELOPE .dat output file and
 ## translates the data into a volumetric measurement of the amount of energy
@@ -39,12 +39,13 @@ def write_charge_gen_mat(x, y, z, G, filepath=None):
         sio.savemat(filepath, data)
 
 def process_data(datafile=None, output_dir=None, plot=False):
-    """ Process a .dat file from pyPENELOPE into a list of showers
+    """ Process a .dat file from pyPENELOPE into charge generation matrices
 
     args:
     datafile -- the .dat file of events (will prompt for path if None)
     output_dir -- the output directory to save to (will also prompt)
     plot -- if True, plots .dat and output data after each shower is processed
+            - currently disabled
 
     returns a list of the output filenames
     """
@@ -76,8 +77,8 @@ def process_data(datafile=None, output_dir=None, plot=False):
         filepath = (output_dir + filename_template).format(index)
         logger.debug("Writing charge generation matrix to '%s'", filepath)
         write_charge_gen_mat(x, y, z, G, filepath=filepath)
-        if plot:
-            plot_both(trajectories=shower, mat=filepath)
+        #if plot:
+        #    plot_both(trajectories=shower, mat=filepath)
         output_files.append(filepath)
     return output_files
 
