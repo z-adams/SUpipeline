@@ -8,7 +8,6 @@ there must be Automation and Charge licenses available for Lumerical.
 The only file you should have to directly interact with is pipeline.py, unless
 you want to use one of the sub components manually. 
 
-## added by Diana Jeong
 For first time only, add pypenelope.config file.
 
 1. Create a new directory for the input and output. I put it just outside the
