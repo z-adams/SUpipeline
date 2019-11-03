@@ -2,12 +2,13 @@
 #### Zander Adams
 
 ## How to make it work:
-
 Prerequisites: pyPENELOPE's home directory must be in your PYTHONPATH, and
 there must be Automation and Charge licenses available for Lumerical.
 
 The only file you should have to directly interact with is pipeline.py, unless
 you want to use one of the sub components manually. 
+
+For first time only, add pypenelope.config file.
 
 1. Create a new directory for the input and output. I put it just outside the
 SUpipeline directory, but it can go anywhere. 
