@@ -10,11 +10,13 @@ trajs = parse_traj("pe-trajectories.dat")
 volumes = []
 compute_charge(trajs[0], volumes)
 
-resolution = 1e-4
+resolution = 4e-7  # [m]
 projection = "XY"
 
 data = run_raymarcher(volumes, resolution, projection)
 
 #plot("/marchlib/output.txt")
-plt.imshow(data)
+#plasma_r
+plt.imshow(data, cmap="plasma", vmin=-1e-13, vmax=1e20)
+plt.colorbar()
 plt.show()
