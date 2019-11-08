@@ -146,6 +146,8 @@ dictionaries or arrays of dictionaries that encode the values necessary to
 represent the various attributes of the simulation inputs. They are detailed
 in comments with examples provided around lines 70 and 130.
 
+- [ ] What is the product of run_penelope()? It would be helpfult to have an option to generate file?
+
 When penelope.py is called, it will do its work in the current working
 directory (cwd). By default, this is where the script was called from.
 
