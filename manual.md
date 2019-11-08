@@ -94,14 +94,14 @@ Export its location using its absolute path like this:
 z-adams@Z-ThinkPad-T450s:~$ export PYTHONPATH="${PYTHONPATH}:
 /abs/path/to/pyPENELOPE-0.2.10/"
 ```
-- [x] Do I have to exporth $PYTHONPATH everytime? Also add ~/SUpipeline to the $PYTHONPATH?
+- [ ] Do I have to exporth $PYTHONPATH everytime? Also add ~/SUpipeline to the $PYTHONPATH?
 
 
 If it's your first time running pyPENELOPE, you'll need to create a
 pypenelope.cfg file under `~/.pypenelope/pypenelope.cfg` on Linux, or
 the appropriate location on other systems. 
-- [x] How was the .pypenelope directory created?
-- [x] In Sherlock, it's under /home/users/SUNetID/.pypenelope, use ls -a to list the hidden items, took me a while to find it
+- [ ] How was the .pypenelope directory created?
+- [ ] In Sherlock, it's under /home/users/SUNetID/.pypenelope, use ls -a to list the hidden items, took me a while to find it
 
 The file should contain the following
 lines, with the paths changed to the appropriate locations of the executables
