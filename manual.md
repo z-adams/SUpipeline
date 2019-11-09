@@ -94,10 +94,16 @@ Export its location using its absolute path like this:
 z-adams@Z-ThinkPad-T450s:~$ export PYTHONPATH="${PYTHONPATH}:
 /abs/path/to/pyPENELOPE-0.2.10/"
 ```
+- [ ] Do I have to exporth $PYTHONPATH everytime? Also add ~/SUpipeline to the $PYTHONPATH?
+
 
 If it's your first time running pyPENELOPE, you'll need to create a
 pypenelope.cfg file under `~/.pypenelope/pypenelope.cfg` on Linux, or
-the appropriate location on other systems. The file should contain the following
+the appropriate location on other systems. 
+- [ ] How was the .pypenelope directory created?
+- [ ] In Sherlock, it's under /home/users/SUNetID/.pypenelope, use ls -a to list the hidden items, took me a while to find it
+
+The file should contain the following
 lines, with the paths changed to the appropriate locations of the executables
 and data files:
 
@@ -140,6 +146,8 @@ as paramters to `run_penelope()`. Briefly, they are python dictionaries or
 arrays of dictionaries that encode the values necessary to represent the various
 attributes of the simulation inputs. They are detailed in comments with examples
 provided around lines 70 and 130.
+
+- [ ] What is the product of run_penelope()? It would be helpfult to have an option to generate file?
 
 When penelope.py is called, it will do its work in the current working
 directory (cwd). By default, this is where the script was called from.
