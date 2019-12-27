@@ -95,9 +95,18 @@ z-adams@Z-ThinkPad-T450s:~$ export PYTHONPATH="${PYTHONPATH}:
 /abs/path/to/pyPENELOPE-0.2.10/"
 ```
 
+This can either be done manually each time you enter a new console, or it can
+be permanently added to path by putting that same command inside your .bashrc
+file in your user directory.
+
 If it's your first time running pyPENELOPE, you'll need to create a
 pypenelope.cfg file under `~/.pypenelope/pypenelope.cfg` on Linux, or
-the appropriate location on other systems. The file should contain the following
+the appropriate location on other systems (remember that since the folder
+begins with . it's a hidden folder and can only be seen with `ls -a`). I don't
+remember whether installing penelope creates this folder automatically, or
+whether it has to be done manually.
+
+The file should contain the following
 lines, with the paths changed to the appropriate locations of the executables
 and data files:
 
@@ -144,6 +153,22 @@ provided around lines 70 and 130.
 When penelope.py is called, it will do its work in the current working
 directory (cwd). By default, this is where the script was called from.
 
+The easiest way to do this is to have the SUpipeline directory at the same level
+as the data directory, e.g.
+
+```
+../
+  |- SUpipeline/
+  |  |- penelope.py, etc.
+  |
+  |- test1/ 
+  |  |-
+```
+
+And then with the current working directory set to test1, the pipeline can be
+run directly from the SUpipeline folder, but will place the resulting files
+in the test1 folder.
+
 For example:
 ```console
 z-adams@Z-ThinkPad-T450s:~/Desktop/SU/test1/$ python ../SUpipeline/penelope.py
@@ -151,10 +176,10 @@ z-adams@Z-ThinkPad-T450s:~/Desktop/SU/test1/$ python ../SUpipeline/penelope.py
 z-adams@Z-ThinkPad-T450s:~/Desktop/SU/test1/$ python script_that_calls_penelope.py
 ```
 
-The current working directory is `~/Desktop/SU/test1/` both in the case where
-a script that imports penelope.py is in the current directory, and even in the
-2nd case, since even though penelope.py lives in `~/Desktop/SU/SUpipeline/`,
-it's being called from our cwd.
+The current working directory is `~/Desktop/SU/test1/` both in the 2nd case where
+a script that imports penelope.py is in the current directory, and in the first
+case, since even though penelope.py lives in `~/Desktop/SU/SUpipeline/`, it's
+being called from our cwd.
 
 Note that a python script can also change the cwd using `os.chdir('path')`
 
