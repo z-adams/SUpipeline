@@ -1,5 +1,4 @@
 # pyPENELOPE -> Lumerical simulation pipeline
-#### Zander Adams
 
 ## How to make it work:
 Prerequisites: pyPENELOPE's home directory must be in your PYTHONPATH, and
